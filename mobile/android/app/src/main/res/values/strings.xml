@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Umbra IA</string>
+    <string name="title_activity_main">Umbra IA</string>
+    <string name="package_name">app.umbra.ia</string>
+    <string name="custom_url_scheme">app.umbra.ia</string>
+</resources>
