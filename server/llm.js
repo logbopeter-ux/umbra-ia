@@ -24,7 +24,9 @@ export function llmConfig(overrides = {}) {
    donc avant d'abandonner, et on nettoie le corps d'erreur pour qu'il soit
    lisible : Google renvoie parfois une page HTML au lieu de JSON. */
 
-const RETRY_STATUSES = new Set([429, 500, 502, 503, 504]);
+// 429 = quota dépassé : réessayer 2 fois en 3 secondes ne sert à rien et
+// consomme encore du quota. On ne retente que les pannes serveur.
+const RETRY_STATUSES = new Set([500, 502, 503, 504]);
 const RETRY_DELAYS = [700, 2000];
 
 function abortError() {
