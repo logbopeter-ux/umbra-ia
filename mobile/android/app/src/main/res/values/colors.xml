@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#F5B23E</color>
+    <color name="colorPrimaryDark">#100D0C</color>
+    <color name="colorAccent">#F5B23E</color>
+    <color name="umbraBackground">#100D0C</color>
+</resources>
