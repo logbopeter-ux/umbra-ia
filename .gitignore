@@ -1,0 +1,41 @@
+# secrets
+.env
+.env.local
+livekit/.env.local
+
+# dépendances
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+uv.lock
+
+# artefacts
+release/
+dist/
+data/notes/*
+data/screenshots/*
+data/python/*
+!data/notes/.gitkeep
+
+# système
+.DS_Store
+Thumbs.db
+
+# ── déploiement ──
+.env.deploy
+.env.production
+
+# ── Android / Capacitor ──
+mobile/node_modules/
+mobile/www/
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/android/app/build/
+mobile/android/build/
+mobile/keystore.properties
+*.jks
+*.keystore
+
+# ── APK produits ──
+apk/*.apk

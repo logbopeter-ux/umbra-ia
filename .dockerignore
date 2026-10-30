@@ -1,0 +1,16 @@
+node_modules
+release
+dist
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+livekit
+tests
+docs
+scripts
+data
+shots
+*.log
+.DS_Store

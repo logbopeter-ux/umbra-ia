@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="fr" class="theme-dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Umbra IA — ton assistant qui agit</title>
+    <meta name="description" content="Umbra IA : ton assistant personnel. Chat, voix et actions réelles — installable sur ordinateur et téléphone." />
+    <meta name="theme-color" content="#141110" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Umbra IA" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/xn7gYHE41ni1AdIRggmxSuXd.woff2" crossorigin />
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/jizBRFtNs2ka5fXjeivQ4LroWlx-6zsTjmbI.woff2" crossorigin />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app" id="app">
+      <!-- ─────────── Barre latérale ─────────── -->
+      <aside class="sidebar" id="sidebar" aria-label="Conversations">
+        <div class="brand">
+          <img src="/icons/icon.svg" alt="" class="brand-logo" width="40" height="40" />
+          <div class="brand-text">
+            <span class="brand-name">Umbra IA</span>
+            <span class="brand-version" id="brandVersion">v2.0</span>
+          </div>
+          <button class="icon-btn sidebar-close" id="sidebarClose" aria-label="Fermer le menu">✕</button>
+        </div>
+
+        <button class="btn btn-new" id="newChat">
+          <span class="plus">+</span> Nouvelle conversation
+        </button>
+
+        <div class="search-wrap">
+          <input id="searchThreads" type="search" placeholder="Rechercher une conversation…" aria-label="Rechercher une conversation" />
+        </div>
+
+        <nav class="threads" id="threads" aria-label="Historique"></nav>
+
+        <div class="sidebar-foot">
+          <button class="nav-item" id="openMemory"><span aria-hidden="true">🧠</span> Mémoire <span class="badge" id="memoryCount">0</span></button>
+          <button class="nav-item" id="openSettings"><span aria-hidden="true">⚙️</span> Réglages</button>
+          <button class="nav-item" id="installBtn" hidden><span aria-hidden="true">⬇️</span> Installer l'app</button>
+          <button class="nav-item" id="openAbout"><span aria-hidden="true">🛡️</span> Confidentialité</button>
+          <button class="nav-item" id="logoutBtn" hidden><span aria-hidden="true">🚪</span> Se déconnecter</button>
+          <p class="sidebar-note" id="sidebarNote">Tout reste sur cet appareil.</p>
+        </div>
+      </aside>
+
+      <div class="scrim" id="scrim" hidden></div>
+
+      <!-- ─────────── Zone principale ─────────── -->
+      <main class="main">
+        <header class="topbar">
+          <button class="icon-btn only-mobile" id="menuBtn" aria-label="Ouvrir le menu">☰</button>
+          <div class="topbar-title">
+            <h1 id="threadTitle">Umbra IDE</h1>
+            <span class="status-chip" id="statusChip" title="État du cerveau">démo</span>
+          </div>
+
+          <div class="topbar-actions">
+            <div class="modes" role="radiogroup" aria-label="Niveau d'autonomie">
+              <button class="mode" data-mode="discussion" role="radio" aria-checked="false">Discussion</button>
+              <button class="mode" data-mode="assisted" role="radio" aria-checked="true">Assisté</button>
+              <button class="mode" data-mode="autonomous" role="radio" aria-checked="false">Autonome</button>
+            </div>
+            <button class="icon-btn" id="voiceToggle" aria-pressed="false" title="Lire les réponses à voix haute">🔊</button>
+          </div>
+        </header>
+
+        <div class="mode-hint" id="modeHint">Mode assisté : Umbra agit, mais te demande avant chaque action risquée.</div>
+
+        <section class="messages" id="messages" aria-live="polite"></section>
+
+        <!-- Écran d'accueil -->
+        <section class="welcome" id="welcome">
+          <div class="orb" aria-hidden="true"><img src="/icons/icon.svg" alt="" width="96" height="96" /></div>
+          <h2>Salut, je suis Umbra.</h2>
+          <p class="welcome-sub">Je parle, je cherche, je calcule, je pilote ton navigateur, j'écris des notes et j'exécute du Python. Je fais tout — sauf laver tes assiettes 🍽️</p>
+          <div class="suggestions" id="suggestions">
+            <button class="chip" data-prompt="Cherche la météo à Cotonou aujourd'hui">Cherche la météo à Cotonou</button>
+            <button class="chip" data-prompt="Explique-moi les trous noirs comme si j'avais 10 ans">Explique les trous noirs à un enfant</button>
+            <button class="chip" data-prompt="Retiens que je préfère les réponses courtes et directes">Retiens que je préfère les réponses courtes</button>
+            <button class="chip" data-prompt="Ouvre le site github.com et dis-moi ce que tu vois">Ouvre github.com et dis-moi ce que tu vois</button>
+          </div>
+          <div class="caps" id="caps"></div>
+        </section>
+
+        <!-- Zone de saisie -->
+        <form class="composer" id="composer" autocomplete="off">
+          <div class="composer-box">
+            <textarea id="input" rows="1" placeholder="Parle à Umbra…" aria-label="Message" enterkeyhint="send"></textarea>
+            <div class="composer-actions">
+              <button type="button" class="icon-btn mic" id="micBtn" aria-label="Dicter" title="Dicter (micro)">🎙️</button>
+              <button type="submit" class="send-btn" id="sendBtn" aria-label="Envoyer" title="Envoyer">
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12.6 2-12.6 2z"/></svg>
+              </button>
+              <button type="button" class="send-btn stop" id="stopBtn" hidden aria-label="Arrêter">■</button>
+            </div>
+          </div>
+          <p class="composer-hint" id="composerHint">Entrée pour envoyer · Maj+Entrée pour un retour à la ligne</p>
+        </form>
+      </main>
+    </div>
+
+    <!-- ─────────── Modale : Réglages ─────────── -->
+    <dialog class="modal" id="settingsModal">
+      <div class="modal-inner">
+        <header class="modal-head">
+          <h2>Réglages</h2>
+          <button type="button" class="icon-btn" data-close aria-label="Fermer">✕</button>
+        </header>
+
+        <div class="modal-body">
+          <section class="field-group">
+            <h3>Serveur Umbra</h3>
+            <p class="help">Laisse vide pour utiliser cette installation. Renseigne une adresse si tu utilises Umbra depuis l'APK ou une autre machine.</p>
+            <label class="field">
+              <span>Adresse du serveur</span>
+              <div class="row">
+                <input id="serverUrl" type="url" placeholder="https://umbra.mondomaine.app" />
+                <button type="button" class="btn btn-ghost" id="saveServer">Enregistrer</button>
+              </div>
+            </label>
+          </section>
+
+          <section class="field-group">
+            <h3>Cerveau (modèle de langage)</h3>
+            <p class="help">Sans clé, Umbra fonctionne en <strong>mode démo</strong> (règles locales + outils réels). Ajoute une clé <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">Gemini gratuite</a> pour la vraie intelligence.</p>
+
+            <label class="field">
+              <span>Fournisseur</span>
+              <select id="providerSelect">
+                <option value="gemini">Google Gemini (gratuit)</option>
+                <option value="openai">OpenAI</option>
+                <option value="openrouter">OpenRouter</option>
+                <option value="groq">Groq</option>
+                <option value="ollama">Ollama (local)</option>
+                <option value="custom">Personnalisé…</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>URL de base (API compatible OpenAI)</span>
+              <input id="baseUrl" type="url" placeholder="https://generativelanguage.googleapis.com/v1beta/openai" />
+            </label>
+
+            <label class="field">
+              <span>Clé API</span>
+              <input id="apiKey" type="password" placeholder="AIza… (stockée uniquement sur cet appareil)" autocomplete="off" />
+            </label>
+
+            <label class="field">
+              <span>Modèle</span>
+              <div class="row">
+                <input id="model" type="text" placeholder="gemini-3.5-flash" />
+                <button type="button" class="btn btn-ghost" id="fetchModels">Lister</button>
+              </div>
+              <div class="model-list" id="modelList" hidden></div>
+            </label>
+
+            <div class="row">
+              <button type="button" class="btn btn-primary" id="testConn">Tester la connexion</button>
+              <span class="test-result" id="testResult"></span>
+            </div>
+          </section>
+
+          <section class="field-group">
+            <h3>Voix</h3>
+            <label class="field checkbox">
+              <input type="checkbox" id="voiceReplies" />
+              <span>Lire les réponses à voix haute</span>
+            </label>
+            <label class="field">
+              <span>Vitesse de la voix : <b id="rateLabel">1.0</b></span>
+              <input id="voiceRate" type="range" min="0.6" max="1.6" step="0.1" value="1" />
+            </label>
+            <button type="button" class="btn btn-ghost" id="testVoice">Tester la voix</button>
+          </section>
+
+          <section class="field-group">
+            <h3>Identité</h3>
+            <label class="field">
+              <span>Comment Umbra t'appelle</span>
+              <input id="userName" type="text" placeholder="Monsieur" />
+            </label>
+          </section>
+
+          <section class="field-group">
+            <h3>Données</h3>
+            <p class="help">Conversations, souvenirs et réglages sont stockés dans ce navigateur. Aucun compte, aucun serveur tiers.</p>
+            <div class="row wrap">
+              <button type="button" class="btn btn-ghost" id="exportData">Exporter mes données</button>
+              <button type="button" class="btn btn-ghost" id="importData">Importer</button>
+              <button type="button" class="btn btn-danger" id="wipeData">Tout effacer</button>
+            </div>
+            <input type="file" id="importFile" accept="application/json" hidden />
+          </section>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- ─────────── Modale : Mémoire ─────────── -->
+    <dialog class="modal" id="memoryModal">
+      <div class="modal-inner">
+        <header class="modal-head">
+          <h2>Mémoire</h2>
+          <button type="button" class="icon-btn" data-close aria-label="Fermer">✕</button>
+        </header>
+        <div class="modal-body">
+          <p class="help">Ce qu'Umbra retient de toi, durablement. Tu peux tout modifier ou effacer.</p>
+          <div class="row" id="memoryForm">
+            <input id="memoryInput" type="text" placeholder="Ajouter un souvenir (ex. : je suis végétarien)" />
+            <button class="btn btn-primary" type="button" id="memoryAdd">Ajouter</button>
+          </div>
+          <ul class="memory-list" id="memoryList"></ul>
+          <button class="btn btn-danger" id="clearMemories" type="button">Tout effacer</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- ─────────── Modale : Confidentialité ─────────── -->
+    <dialog class="modal" id="aboutModal">
+      <div class="modal-inner">
+        <header class="modal-head">
+          <h2>Confidentialité &amp; fonctionnement</h2>
+          <button type="button" class="icon-btn" data-close aria-label="Fermer">✕</button>
+        </header>
+        <div class="modal-body prose">
+          <h3>Tes données</h3>
+          <p>Conversations, souvenirs et réglages restent dans le stockage local de ton navigateur (ou de ton app de bureau). Rien n'est envoyé à un service tiers, sauf :</p>
+          <ul>
+            <li>les messages envoyés au fournisseur d'IA que <em>tu</em> as choisi (Gemini, OpenAI…), avec <em>ta</em> clé ;</li>
+            <li>les requêtes des outils que tu déclenches (recherche DuckDuckGo, page ouverte par le navigateur piloté).</li>
+          </ul>
+          <h3>Les trois modes</h3>
+          <ul>
+            <li><b>Discussion</b> — Umbra répond, n'agit jamais.</li>
+            <li><b>Assisté</b> — Umbra propose, demande confirmation avant toute action risquée (écrire, exécuter, piloter).</li>
+            <li><b>Autonome</b> — Umbra agit seul, puis rend compte.</li>
+          </ul>
+          <h3>Limites assumées</h3>
+          <ul>
+            <li>Pas d'accès aux comptes bancaires ni aux moyens de paiement.</li>
+            <li>Le pilotage du navigateur et l'exécution Python tournent sur <em>ta</em> machine, quand Umbra y est lancé.</li>
+            <li>Un modèle peut se tromper : vérifie ce qui compte.</li>
+          </ul>
+          <p class="muted">Umbra IA v2.0 · projet local-first · <span id="aboutBuild"></span></p>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- ─────────── Écran : connexion au serveur (APK / autre machine) ─────────── -->
+    <div class="connect-screen" id="connectScreen" hidden>
+      <div class="connect-card">
+        <img src="icons/icon.svg" alt="" width="76" height="76" />
+        <h2>Umbra IA</h2>
+        <p>Indique l'adresse de ton serveur Umbra. C'est lui qui donne sa mémoire, ses outils et son cerveau à l'application.</p>
+        <div class="connect-form">
+          <input id="connectUrl" type="url" inputmode="url" placeholder="https://umbra.mondomaine.app" aria-label="Adresse du serveur" />
+          <input id="connectPassword" type="password" autocomplete="current-password" placeholder="Mot de passe (si le serveur en a un)" aria-label="Mot de passe du serveur" />
+          <button class="btn btn-primary" id="connectBtn" type="button">Se connecter</button>
+        </div>
+        <p class="connect-status" id="connectStatus" role="status" aria-live="polite"></p>
+        <div class="connect-hints">
+          <p><b>Sur le même Wi-Fi :</b> <code>http://192.168.1.20:4173</code></p>
+          <p><b>En ligne :</b> <code>https://umbra.mondomaine.app</code></p>
+          <p class="muted">Le serveur s'obtient avec <code>npm start</code> sur l'ordinateur, ou en suivant le guide de déploiement.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

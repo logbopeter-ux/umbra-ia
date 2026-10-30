@@ -1,0 +1,39 @@
+# ─────────────────────────────────────────────────────────────
+#  Umbra IA — déploiement en une commande
+#
+#    cp .env.deploy.example .env.deploy   # puis remplis le mot de passe
+#    docker compose --env-file .env.deploy up -d --build
+#
+#  L'app est ensuite sur http://localhost:4173 (ou ton domaine).
+# ─────────────────────────────────────────────────────────────
+services:
+  umbra:
+    build: .
+    image: umbra-ia:2.0.0
+    container_name: umbra
+    restart: unless-stopped
+    ports:
+      - "${UMBRA_PORT:-4173}:4173"
+    environment:
+      # ── sécurité (obligatoire) ──
+      UMBRA_PASSWORD: ${UMBRA_PASSWORD:?Définis UMBRA_PASSWORD dans .env.deploy}
+      UMBRA_SESSION_SECRET: ${UMBRA_SESSION_SECRET:-}
+      # ── cerveau (optionnel : sans clé, mode démo) ──
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai}
+      LLM_MODEL: ${LLM_MODEL:-gemini-3.5-flash}
+      # ── identité ──
+      UMBRA_USER_NAME: ${UMBRA_USER_NAME:-Monsieur}
+      UMBRA_TIMEZONE: ${UMBRA_TIMEZONE:-Africa/Porto-Novo}
+      # ── outils machine : coupés sur un serveur public ──
+      UMBRA_PUBLIC_MODE: "1"
+      UMBRA_TOOLS_DISABLE: ${UMBRA_TOOLS_DISABLE:-run_python,browser_control,system_command}
+      UMBRA_ALLOW_SHELL: "0"
+    volumes:
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4173/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

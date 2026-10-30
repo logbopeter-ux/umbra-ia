@@ -1,0 +1,64 @@
+{
+  "name": "umbra-ia",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Umbra IA — ton assistant personnel : chat, voix et agent autonome, installable sur desktop et mobile.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "desktop": "electron desktop/main.js",
+    "build:desktop": "electron-builder",
+    "icons": "node scripts/make-icons.js",
+    "test": "node --test tests/"
+  },
+  "optionalDependencies": {
+    "playwright": "^1.48.2"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "app.umbra.ia",
+    "productName": "Umbra IA",
+    "directories": {
+      "output": "release",
+      "buildResources": "desktop/resources"
+    },
+    "files": [
+      "server/**/*",
+      "web/**/*",
+      "desktop/**/*",
+      "package.json"
+    ],
+    "extraMetadata": {
+      "main": "desktop/main.js"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "web/icons/icon-512.png"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.productivity",
+      "icon": "web/icons/icon-512.png"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Utility",
+      "icon": "web/icons/icon-512.png"
+    }
+  }
+}

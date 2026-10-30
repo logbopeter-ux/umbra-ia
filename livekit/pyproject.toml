@@ -1,0 +1,14 @@
+[project]
+name = "umbra-livekit-agent"
+version = "2.0.0"
+description = "Agent vocal temps réel d'Umbra IA (LiveKit + Gemini Live)"
+requires-python = ">=3.10"
+dependencies = [
+  "livekit-agents[google,images,silero,turn-detector]~=1.8",
+  "livekit-plugins-noise-cancellation~=0.2",
+  "python-dotenv>=1.0",
+  "httpx>=0.27",
+]
+
+[tool.uv]
+package = false

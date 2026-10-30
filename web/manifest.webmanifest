@@ -1,0 +1,35 @@
+{
+  "name": "Umbra IA — ton assistant qui agit",
+  "short_name": "Umbra IA",
+  "description": "Assistant personnel : chat, voix et actions réelles (recherche, navigateur, Python, notes).",
+  "lang": "fr",
+  "dir": "ltr",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#100d0c",
+  "theme_color": "#100d0c",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Nouvelle conversation",
+      "short_name": "Nouveau",
+      "url": "/?new=1",
+      "description": "Démarrer une conversation avec Umbra"
+    },
+    {
+      "name": "Mémoire",
+      "short_name": "Mémoire",
+      "url": "/?memory=1",
+      "description": "Voir ce qu'Umbra retient de toi"
+    }
+  ]
+}

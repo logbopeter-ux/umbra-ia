@@ -1,0 +1,28 @@
+{
+  "appId": "app.umbra.ia",
+  "appName": "Umbra IA",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": true
+  },
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "plugins": {
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#100d0c",
+      "overlaysWebView": false
+    },
+    "SplashScreen": {
+      "backgroundColor": "#100d0c",
+      "showSpinner": false,
+      "launchAutoHide": true,
+      "launchShowDuration": 900
+    }
+  }
+}
