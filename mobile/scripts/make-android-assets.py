@@ -143,8 +143,46 @@ def make_colors():
     )
 
 
+
+def make_strings_and_paths():
+    """Textes de l'application + chemins du FileProvider.
+
+    Ces deux fichiers sont référencés par AndroidManifest.xml
+    (@string/app_name, @string/title_activity_main, @xml/file_paths) :
+    sans eux, la compilation échoue en « resource linking failed ».
+    """
+    values = RES / "values"
+    values.mkdir(parents=True, exist_ok=True)
+    (values / "strings.xml").write_text(
+        """<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Umbra IA</string>
+    <string name="title_activity_main">Umbra IA</string>
+    <string name="package_name">app.umbra.ia</string>
+    <string name="custom_url_scheme">app.umbra.ia</string>
+</resources>
+""",
+        encoding="utf-8",
+    )
+
+    xml_dir = RES / "xml"
+    xml_dir.mkdir(parents=True, exist_ok=True)
+    (xml_dir / "file_paths.xml").write_text(
+        """<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <cache-path name="my_cache_images" path="." />
+    <external-path name="my_images" path="." />
+    <external-cache-path name="my_external_cache" path="." />
+    <files-path name="my_files" path="." />
+</paths>
+""",
+        encoding="utf-8",
+    )
+
+
 if __name__ == "__main__":
     make_launcher()
     make_splash()
     make_colors()
-    print("Ressources Android générées (icônes, splash, couleurs).")
+    make_strings_and_paths()
+    print("Ressources Android générées (icônes, splash, couleurs, textes, FileProvider).")
