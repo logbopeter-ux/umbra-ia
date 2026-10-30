@@ -1252,15 +1252,53 @@ function setMode(mode) {
 
 /* ─────────────── Export / import ─────────────── */
 
-function exportData() {
-  const data = { version: 2, exportedAt: new Date().toISOString(), settings: { ...state.settings, apiKey: '' }, threads: state.threads, memories: state.memories };
+/**
+ * Le carnet de notes vit sur le serveur, pas dans le navigateur : il faut le
+ * demander à l'API. Sur une offre gratuite (disque éphémère), c'est la seule
+ * façon de ne pas perdre les notes au réveil du service.
+ */
+async function fetchServerNotes() {
+  try {
+    const r = await fetch(`${getServer()}/api/notes/export`, net());
+    if (!r.ok) return null;
+    const d = await r.json();
+    return Array.isArray(d.notes) ? d.notes : null;
+  } catch {
+    return null;
+  }
+}
+
+async function pushServerNotes(notes) {
+  try {
+    const r = await fetch(
+      `${getServer()}/api/notes/import`,
+      net({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notes }) }),
+    );
+    if (!r.ok) return null;
+    return await r.json();
+  } catch {
+    return null;
+  }
+}
+
+async function exportData() {
+  const notes = await fetchServerNotes();
+  const data = {
+    version: 3,
+    exportedAt: new Date().toISOString(),
+    settings: { ...state.settings, apiKey: '' },
+    threads: state.threads,
+    memories: state.memories,
+    notes: notes || [],
+  };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `umbra-donnees-${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   URL.revokeObjectURL(a.href);
-  toast('Données exportées (sans la clé API).');
+  if (notes === null) toast('Données exportées (sans la clé API). Carnet de notes injoignable.');
+  else toast(`Données exportées : conversations, souvenirs et ${notes.length} note(s).`);
 }
 
 function importData(file) {
@@ -1275,7 +1313,16 @@ function importData(file) {
       save(LS.memories, state.memories);
       saveSettings();
       renderAll();
-      toast('Données importées.');
+      const notes = Array.isArray(data.notes) ? data.notes : [];
+      if (!notes.length) {
+        toast('Données importées.');
+        return;
+      }
+      pushServerNotes(notes).then((res) => {
+        if (!res) toast('Données importées, mais le carnet de notes n\'a pas pu être restauré.', 'error');
+        else if (res.skipped?.length) toast(`Données importées : ${res.imported} note(s) restaurée(s), ${res.skipped.length} ignorée(s).`);
+        else toast(`Données importées : ${res.imported} note(s) restaurée(s).`);
+      });
     } catch {
       toast('Fichier invalide.', 'error');
     }

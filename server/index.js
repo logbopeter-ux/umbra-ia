@@ -92,6 +92,17 @@ function sendJSON(res, code, obj, origin) {
   res.end(JSON.stringify(obj));
 }
 
+/**
+ * Nom de fichier sûr pour une note importée : empêche toute évasion de
+ * répertoire (« ../ », chemins absolus) et neutralise les caractères exotiques.
+ */
+function noteFileName(raw) {
+  const base = path.basename(String(raw || '')).replace(/\.md$/i, '').trim();
+  if (!base || base === '.' || base === '..') return null;
+  const clean = base.replace(/[^\p{L}\p{N} ._-]/gu, '-').replace(/\s+/g, ' ').trim().slice(0, 100);
+  return clean || null ? `${clean}.md` : null;
+}
+
 async function readBody(req, limit = 4 * 1024 * 1024) {
   return new Promise((resolve, reject) => {
     let size = 0;
@@ -415,6 +426,43 @@ const server = http.createServer(async (req, res) => {
           name: t.name, label: t.label, description: t.description, risky: t.risky, parameters: t.parameters,
         })),
       }, ORIGIN);
+    }
+
+    /* ── Sauvegarde des notes ──────────────────────────────────────────
+       Le disque de l'offre gratuite Render est éphémère : les notes
+       disparaissent à chaque réveil. Ces deux routes permettent à
+       l'interface d'exporter/restaurer le carnet en un clic. */
+    if (p === '/api/notes/export' && req.method === 'GET') {
+      await fsp.mkdir(PATHS.NOTES, { recursive: true });
+      const files = (await fsp.readdir(PATHS.NOTES)).filter((f) => f.endsWith('.md')).sort();
+      const notes = [];
+      for (const f of files) {
+        const content = await fsp.readFile(path.join(PATHS.NOTES, f), 'utf8').catch(() => null);
+        if (content !== null) notes.push({ name: f.replace(/\.md$/, ''), content });
+      }
+      return sendJSON(res, 200, { version: 1, exportedAt: new Date().toISOString(), notes }, ORIGIN);
+    }
+
+    if (p === '/api/notes/import' && req.method === 'POST') {
+      const body = await readBody(req);
+      const list = Array.isArray(body?.notes) ? body.notes : null;
+      if (!list) {
+        return sendJSON(res, 400, { error: 'Format attendu : { "notes": [ { "name": "…", "content": "…" } ] }.' }, ORIGIN);
+      }
+      if (list.length > 500) return sendJSON(res, 413, { error: 'Trop de notes en une seule fois (500 maximum).' }, ORIGIN);
+      await fsp.mkdir(PATHS.NOTES, { recursive: true });
+      let imported = 0;
+      const skipped = [];
+      for (const n of list) {
+        const name = noteFileName(n?.name);
+        if (!name) {
+          skipped.push(String(n?.name ?? '').slice(0, 60));
+          continue;
+        }
+        await fsp.writeFile(path.join(PATHS.NOTES, name), String(n?.content ?? ''), 'utf8');
+        imported += 1;
+      }
+      return sendJSON(res, 200, { ok: true, imported, skipped }, ORIGIN);
     }
 
     /* Chat en streaming */
