@@ -309,4 +309,42 @@ Tu peux changer d'adresse plus tard : **⚙️ Réglages → Serveur Umbra**.
 
 ---
 
+## 9. Sauvegarder ses notes quand le disque est éphémère
+
+Sur une offre gratuite (Render Free, Railway Trial), le disque n'est **pas**
+persistant : le carnet de notes est perdu à chaque réveil ou redéploiement.
+Les conversations et les souvenirs, eux, vivent dans le navigateur et ne
+bougent pas.
+
+La parade est intégrée à l'application :
+
+1. Ouvre **⚙️ Réglages** → **« Exporter mes données »**.
+   Le fichier `umbra-donnees-AAAA-MM-JJ.json` contient les conversations, les
+   souvenirs **et les notes du serveur**.
+2. Après un redéploiement, rouvre Réglages → **« Importer »** → choisis ce
+   fichier. Les notes sont réécrites dans le carnet.
+
+Détails techniques, si tu veux script l'opération :
+
+| Route | Méthode | Rôle |
+|---|---|---|
+| `/api/notes/export` | `GET` | renvoie `{ version, exportedAt, notes: [{ name, content }] }` |
+| `/api/notes/import` | `POST` | accepte `{ "notes": [{ "name", "content" }] }`, écrit dans `data/notes/` |
+
+```bash
+# Sauvegarde en ligne de commande (adapté au mot de passe si activé)
+curl -s https://TON-URL.onrender.com/api/notes/export > notes.json
+curl -s -X POST https://TON-URL.onrender.com/api/notes/import \
+     -H 'Content-Type: application/json' -d @notes.json
+```
+
+Les noms de notes sont systématiquement réduits à leur nom de fichier
+(`path.basename`) et nettoyés : une note nommée `../../etc/passwd` est
+enregistrée sous `passwd.md` à l'intérieur du carnet, jamais ailleurs.
+
+Pour ne plus y penser du tout : passe au plan Starter et active le disque
+`umbra-data` (voir `render.yaml`).
+
+---
+
 Bon hébergement. Umbra est chez toi, et sa porte a une serrure.
