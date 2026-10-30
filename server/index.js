@@ -16,6 +16,7 @@ import { buildSystemPrompt } from './prompt.js';
 import { createAuth } from './auth.js';
 import { TOOL_DEFS, toolsForLLM, getTool, executeTool, PATHS, disabledTools } from './tools.js';
 import { streamCompletion, demoBrain, llmConfig, listModels } from './llm.js';
+import { sanitizeMessages } from './sanitize.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
@@ -176,14 +177,6 @@ function askApproval(id, meta) {
 
 /* ── boucle d'agent ───────────────────────────────────────────────────── */
 const MAX_STEPS = 6;
-
-function sanitizeMessages(list) {
-  if (!Array.isArray(list)) return [];
-  return list
-    .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
-    .slice(-40)
-    .map((m) => ({ role: m.role, content: m.content.slice(0, 12000) }));
-}
 
 async function runAgent({ messages, mode, config, memories, userName, emit, signal }) {
   const system = buildSystemPrompt({
