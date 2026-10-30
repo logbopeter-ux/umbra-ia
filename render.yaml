@@ -8,16 +8,17 @@
 #  4. Umbra sera en ligne sur https://umbra-<quelquechose>.onrender.com
 #     (protégée par mot de passe).
 #
-#  ⚠️ Sur l'offre gratuite, le disque n'est PAS persistant : notes et
-#  mémoire sont perdues à chaque redéploiement. Passe au plan Starter
-#  (7 $/mois) en ajoutant le bloc « disk » commenté plus bas.
+#  ⚠️ Offre gratuite : pas de disque, les NOTES sont perdues à chaque
+#  réveil/redéploiement. (Les souvenirs « remember » sont stockés dans le
+#  navigateur, donc déjà persistants.) Le plan Starter (7 $/mois) active
+#  le disque « umbra-data » ci-dessous.
 # ─────────────────────────────────────────────────────────────
 services:
   - type: web
     name: umbra-ia
     runtime: docker
     dockerfilePath: ./Dockerfile
-    plan: free
+    plan: starter # disque persistant = plan payant obligatoire
     region: frankfurt
     healthCheckPath: /api/health
     autoDeploy: true
@@ -38,8 +39,10 @@ services:
         sync: false
       - key: LLM_MODEL
         value: gemini-3.5-flash
-    # ── Persistance (plan payant uniquement) ──
-    # disk:
-    #   name: umbra-data
-    #   mountPath: /app/data
-    #   sizeGB: 1
+    # ── Persistance des notes (plan Starter minimum) ──
+    # Le disque est monté en root:root par Render : c'est docker-entrypoint.sh
+    # qui redonne /app/data à l'utilisateur « node » au démarrage.
+    disk:
+      name: umbra-data
+      mountPath: /app/data
+      sizeGB: 1

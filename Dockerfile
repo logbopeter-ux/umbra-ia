@@ -21,20 +21,29 @@ ENV NODE_ENV=production \
     UMBRA_TOOLS_DISABLE=run_python,browser_control,system_command \
     UMBRA_ALLOW_SHELL=0
 
+# su-exec : démarrer en root pour donner /app/data à « node », puis
+# abandonner les privilèges (indispensable pour un disque Render monté root).
+RUN apk add --no-cache su-exec && rm -rf /var/cache/apk/*
+
 # Code applicatif (pas de node_modules : le serveur est sans dépendance)
 COPY package.json ./
 COPY server ./server
 COPY web ./web
 COPY desktop ./desktop
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 # Dossiers de données inscriptibles par l'utilisateur non privilégié
-RUN mkdir -p /app/data/notes /app/data/screenshots /app/data/python \
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
+    && mkdir -p /app/data/notes /app/data/screenshots /app/data/python \
     && chown -R node:node /app
 
-USER node
+# Pas de « USER node » ici : le conteneur démarre en root le temps de
+# corriger les droits du volume, puis docker-entrypoint.sh abandonne les
+# privilèges avec su-exec avant de lancer l'application.
 EXPOSE 4173
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||4173)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["node", "server/index.js"]
