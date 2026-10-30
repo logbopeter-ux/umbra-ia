@@ -731,6 +731,12 @@ async function sendMessage(text) {
     }
     prose.innerHTML = renderMarkdown(assistant.content);
   } finally {
+    // Un message assistant vide (échec du fournisseur) ne doit pas être conservé :
+    // renvoyé au modèle au tour suivant, il fait échouer TOUTE la conversation
+    // en 400 (l'API refuse les contenus vides). L'erreur reste affichée à l'écran.
+    if (!assistant.content && assistant.error) {
+      thread.messages = thread.messages.filter((m) => m !== assistant);
+    }
     setStreaming(false);
     state.controller = null;
     thread.updatedAt = Date.now();
