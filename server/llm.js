@@ -18,6 +18,58 @@ export function llmConfig(overrides = {}) {
 
 /* ─────────────────────────── Appel réel (streaming + outils) ─────────────────────────── */
 
+/* ── Robustesse réseau ─────────────────────────────────────────────────
+   Les fournisseurs d'IA renvoient régulièrement des 503/429 transitoires
+   (« model overloaded ») alors que la requête suivante passe. On retente
+   donc avant d'abandonner, et on nettoie le corps d'erreur pour qu'il soit
+   lisible : Google renvoie parfois une page HTML au lieu de JSON. */
+
+const RETRY_STATUSES = new Set([429, 500, 502, 503, 504]);
+const RETRY_DELAYS = [700, 2000];
+
+function abortError() {
+  const e = new Error('Requête annulée.');
+  e.name = 'AbortError';
+  return e;
+}
+
+function sleep(ms, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(abortError());
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timer);
+        reject(abortError());
+      },
+      { once: true },
+    );
+  });
+}
+
+function cleanDetail(text) {
+  return String(text || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 200);
+}
+
+/** fetch + jusqu'à 2 nouvelles tentatives sur les statuts transitoires. */
+async function fetchWithRetry(url, opts, signal, onRetry) {
+  let res;
+  for (let attempt = 0; attempt <= RETRY_DELAYS.length; attempt += 1) {
+    res = await fetch(url, opts);
+    if (res.ok || !RETRY_STATUSES.has(res.status) || attempt === RETRY_DELAYS.length) return res;
+    onRetry?.(attempt + 1, res.status);
+    await sleep(RETRY_DELAYS[attempt], signal);
+  }
+  return res;
+}
+
 export async function streamCompletion({ config, messages, tools, signal, onDelta }) {
   const body = {
     model: config.model,
@@ -30,28 +82,38 @@ export async function streamCompletion({ config, messages, tools, signal, onDelt
     body.tool_choice = 'auto';
   }
 
-  const res = await fetch(`${config.baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.apiKey}`,
+  const res = await fetchWithRetry(
+    `${config.baseUrl}/chat/completions`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${config.apiKey}`,
+      },
+      body: JSON.stringify(body),
+      signal,
     },
-    body: JSON.stringify(body),
     signal,
-  });
+    config.onRetry,
+  );
 
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     let msg = `Erreur ${res.status} du fournisseur IA.`;
+    let detail = '';
     try {
       const j = JSON.parse(text);
-      msg = j.error?.message || j.message || msg;
+      detail = j.error?.message || j.message || '';
     } catch {
-      if (text) msg += ` ${text.slice(0, 300)}`;
+      detail = cleanDetail(text);
     }
+    if (detail) msg += ` ${cleanDetail(detail)}`;
     if (res.status === 401 || res.status === 403) msg += ' Vérifie ta clé API dans Réglages.';
     if (res.status === 429) msg += ' Quota atteint : attends une minute ou change de modèle.';
     if (res.status === 404) msg += ` Le modèle « ${config.model} » existe-t-il ? Ouvre Réglages → Modèles pour en choisir un autre.`;
+    if (res.status === 503 || res.status === 502) {
+      msg += ' Serveur du fournisseur surchargé : réessaie dans quelques secondes.';
+    }
     throw new Error(msg);
   }
 
