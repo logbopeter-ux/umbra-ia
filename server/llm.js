@@ -13,7 +13,9 @@ export function llmConfig(overrides = {}) {
   const baseUrl = (overrides.baseUrl || process.env.LLM_BASE_URL || DEFAULT_BASE).replace(/\/+$/, '');
   const apiKey = overrides.apiKey || process.env.LLM_API_KEY || '';
   const model = overrides.model || process.env.LLM_MODEL || DEFAULT_MODEL;
-  return { baseUrl, apiKey, model, live: Boolean(apiKey) };
+  // Une clé de secours (Groq, OpenRouter…) suffit à sortir du mode démo.
+  const live = Boolean(apiKey) || providerChain().length > 0;
+  return { baseUrl, apiKey, model, live };
 }
 
 /* ─────────────────────────── Appel réel (streaming + outils) ─────────────────────────── */
@@ -72,7 +74,48 @@ async function fetchWithRetry(url, opts, signal, onRetry) {
   return res;
 }
 
-export async function streamCompletion({ config, messages, tools, signal, onDelta }) {
+/* ── Chaîne de fournisseurs ────────────────────────────────────────────
+   Le cerveau principal reste celui de LLM_* (Gemini aujourd'hui). Si sa clé
+   manque, si le quota est épuisé ou si le service tombe, on bascule
+   automatiquement sur les fournisseurs de secours déclarés en variables
+   d'environnement. Aucune clé n'est jamais écrite dans le code. */
+
+export function providerChain(env = process.env) {
+  const out = [];
+  const push = (label, baseUrl, apiKey, model) => {
+    if (!baseUrl || !apiKey || !model) return;
+    out.push({ label, baseUrl: String(baseUrl).replace(/\/+$/, ''), apiKey, model });
+  };
+  // Groq : palier gratuit généreux (30 req/min, 1 000 req/jour, sans carte).
+  push('groq', 'https://api.groq.com/openai/v1', env.GROQ_API_KEY, env.GROQ_MODEL || 'openai/gpt-oss-120b');
+  // OpenRouter : un seul compte pour Claude, GPT, Gemini… (modèle obligatoire).
+  push('openrouter', 'https://openrouter.ai/api/v1', env.OPENROUTER_API_KEY, env.OPENROUTER_MODEL);
+  // Anthropic en direct (modèle obligatoire : les identifiants évoluent).
+  push('anthropic', env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com/v1', env.ANTHROPIC_API_KEY, env.ANTHROPIC_MODEL);
+  // Jusqu'à deux endpoints compatibles OpenAI supplémentaires.
+  for (const n of [1, 2]) {
+    push(
+      env[`LLM_FALLBACK${n}_LABEL`] || `secours${n}`,
+      env[`LLM_FALLBACK${n}_URL`],
+      env[`LLM_FALLBACK${n}_KEY`],
+      env[`LLM_FALLBACK${n}_MODEL`],
+    );
+  }
+  return out;
+}
+
+// Erreurs qui justifient d'essayer le fournisseur suivant.
+// 400 est exclu : c'est un problème de requête, pas de fournisseur.
+const FALLBACK_STATUSES = new Set([401, 402, 403, 404, 429, 500, 502, 503, 504]);
+
+function canFallback(err) {
+  if (!err) return true;
+  if (err.name === 'AbortError') return false;
+  if (err.status === undefined) return true; // panne réseau / DNS
+  return FALLBACK_STATUSES.has(err.status);
+}
+
+async function streamOnce({ config, messages, tools, signal, onDelta }) {
   const body = {
     model: config.model,
     messages,
@@ -116,7 +159,9 @@ export async function streamCompletion({ config, messages, tools, signal, onDelt
     if (res.status === 503 || res.status === 502) {
       msg += ' Serveur du fournisseur surchargé : réessaie dans quelques secondes.';
     }
-    throw new Error(msg);
+    const err = new Error(msg);
+    err.status = res.status;
+    throw err;
   }
 
   const reader = res.body.getReader();
@@ -182,6 +227,56 @@ export async function streamCompletion({ config, messages, tools, signal, onDelt
     });
 
   return { content, toolCalls };
+}
+
+/**
+ * Essaie le fournisseur principal, puis les secours, dans l'ordre.
+ * On ne bascule pas si du texte a déjà été affiché (cela créerait un doublon).
+ */
+export async function streamCompletion({ config, messages, tools, signal, onDelta, onProvider }) {
+  const primary = {
+    label: 'principal',
+    baseUrl: config.baseUrl,
+    apiKey: config.apiKey,
+    model: config.model,
+  };
+  const chain = [primary, ...providerChain()].filter(
+    (e, i, all) =>
+      e.apiKey &&
+      e.baseUrl &&
+      e.model &&
+      all.findIndex((o) => o.baseUrl === e.baseUrl && o.model === e.model) === i,
+  );
+
+  if (!chain.length) throw new Error('Aucune clé API configurée : Umbra fonctionne en mode démo.');
+
+  const failures = [];
+  let emitted = false;
+  const guardedDelta = (t) => {
+    emitted = true;
+    onDelta?.(t);
+  };
+
+  for (const entry of chain) {
+    try {
+      onProvider?.({ label: entry.label, model: entry.model });
+      const out = await streamOnce({ config: entry, messages, tools, signal, onDelta: guardedDelta });
+      if (out?.content || out?.toolCalls?.length) {
+        if (entry.label !== 'principal') {
+          console.log(`[umbra] réponse fournie par « ${entry.label} » (${entry.model})`);
+        }
+        return { ...out, provider: entry.label, model: entry.model };
+      }
+      failures.push(`${entry.label} : réponse vide`);
+    } catch (err) {
+      if (signal?.aborted || err.name === 'AbortError') throw err;
+      failures.push(`${entry.label} (${entry.model}) : ${err.message}`);
+      if (emitted || !canFallback(err)) throw err;
+      console.warn(`[umbra] bascule après échec de « ${entry.label} » : ${err.message}`);
+    }
+  }
+
+  throw new Error(`Tous les fournisseurs ont échoué — ${failures.join(' · ')}`);
 }
 
 /* ─────────────────────────── MODE DÉMO (sans clé) ─────────────────────────── */

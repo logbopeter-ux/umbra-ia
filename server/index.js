@@ -15,7 +15,7 @@ import crypto from 'node:crypto';
 import { buildSystemPrompt } from './prompt.js';
 import { createAuth } from './auth.js';
 import { TOOL_DEFS, toolsForLLM, getTool, executeTool, PATHS, disabledTools } from './tools.js';
-import { streamCompletion, demoBrain, llmConfig, listModels } from './llm.js';
+import { streamCompletion, demoBrain, llmConfig, listModels, providerChain } from './llm.js';
 import { sanitizeMessages } from './sanitize.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -201,6 +201,8 @@ async function runAgent({ messages, mode, config, memories, userName, emit, sign
         tools: allowTools ? toolsForLLM() : undefined,
         signal,
         onDelta: (text) => emit({ type: 'delta', text }),
+        // Permet à l'interface (et aux journaux) de savoir quel cerveau a répondu.
+        onProvider: ({ label, model }) => emit({ type: 'provider', label, model }),
       });
     } else {
       out = await demoBrain({ messages: convo, mode, emitDelta: (text) => emit({ type: 'delta', text }) });
@@ -364,6 +366,7 @@ const server = http.createServer(async (req, res) => {
           name: t.name, label: t.label, description: t.description, risky: t.risky,
         })),
         shell: process.env.UMBRA_ALLOW_SHELL === '1',
+        providers: providerChain().map((p) => `${p.label}:${p.model}`),
         auth: auth.enabled,
         publicMode: PUBLIC_MODE,
         disabledTools: DISABLED,
