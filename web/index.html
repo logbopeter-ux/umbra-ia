@@ -25,7 +25,7 @@
           <img src="/icons/icon.svg" alt="" class="brand-logo" width="40" height="40" />
           <div class="brand-text">
             <span class="brand-name">Umbra IA</span>
-            <span class="brand-version" id="brandVersion">v2.0</span>
+            <span class="brand-version" id="brandVersion">v2.1</span>
           </div>
           <button class="icon-btn sidebar-close" id="sidebarClose" aria-label="Fermer le menu">✕</button>
         </div>
@@ -91,17 +91,40 @@
 
         <!-- Zone de saisie -->
         <form class="composer" id="composer" autocomplete="off">
-          <div class="composer-box">
-            <textarea id="input" rows="1" placeholder="Parle à Umbra…" aria-label="Message" enterkeyhint="send"></textarea>
-            <div class="composer-actions">
-              <button type="button" class="icon-btn mic" id="micBtn" aria-label="Dicter" title="Dicter (micro)">🎙️</button>
-              <button type="submit" class="send-btn" id="sendBtn" aria-label="Envoyer" title="Envoyer">
-                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12.6 2-12.6 2z"/></svg>
+          <div class="composer-zone" id="composerZone">
+            <!-- Pièces jointes en attente d'envoi -->
+            <div class="pieces" id="pieces" hidden aria-live="polite"></div>
+
+            <div class="composer-box">
+              <button type="button" class="icon-btn clip" id="clipBtn" aria-label="Joindre un fichier ou une photo" title="Joindre un fichier ou une photo">
+                <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M20.4 11.6 12 20a5.1 5.1 0 0 1-7.2-7.2l8.6-8.6a3.4 3.4 0 0 1 4.8 4.8l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8"/>
+                </svg>
               </button>
-              <button type="button" class="send-btn stop" id="stopBtn" hidden aria-label="Arrêter">■</button>
+
+              <textarea id="input" rows="1" placeholder="Parle à Umbra…" aria-label="Message" enterkeyhint="send"></textarea>
+
+              <div class="composer-actions">
+                <button type="button" class="icon-btn mic" id="micBtn" aria-label="Dicter" title="Dicter (micro)">🎙️</button>
+                <button type="button" class="icon-btn nl" id="newlineBtn" aria-label="Aller à la ligne" title="Aller à la ligne (Maj + Entrée)">
+                  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M20 5v7a3 3 0 0 1-3 3H5"/><path d="m9 11-4 4 4 4"/>
+                  </svg>
+                </button>
+                <button type="submit" class="send-btn" id="sendBtn" aria-label="Envoyer" title="Envoyer">
+                  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12.6 2-12.6 2z"/></svg>
+                </button>
+                <button type="button" class="send-btn stop" id="stopBtn" hidden aria-label="Arrêter">■</button>
+              </div>
+            </div>
+
+            <div class="drop-veil" id="dropVeil" hidden>
+              <div class="drop-card">📎 Déposez ici<small>Photos, PDF, Word, Excel, texte, code…</small></div>
             </div>
           </div>
-          <p class="composer-hint" id="composerHint">Entrée pour envoyer · Maj+Entrée pour un retour à la ligne</p>
+
+          <input type="file" id="fileInput" multiple hidden />
+          <p class="composer-hint" id="composerHint">Entrée pour envoyer · Maj+Entrée ou ↵ pour aller à la ligne · 📎 pour joindre une photo, un PDF, un document</p>
         </form>
       </main>
     </div>
@@ -129,15 +152,16 @@
 
           <section class="field-group">
             <h3>Cerveau (modèle de langage)</h3>
-            <p class="help">Sans clé, Umbra fonctionne en <strong>mode démo</strong> (règles locales + outils réels). Ajoute une clé <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">Gemini gratuite</a> pour la vraie intelligence.</p>
+            <p class="help">Sans clé, Umbra fonctionne en <strong>mode démo</strong> (règles locales + outils réels). Choisis un fournisseur et colle ta clé : <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">Gemini</a> (gratuit), <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">Claude</a>, <a href="https://console.groq.com/keys" target="_blank" rel="noreferrer">Groq</a>… <span class="help-inline">Comparatif : <code>docs/CERVEAUX.md</code></span></p>
 
             <label class="field">
               <span>Fournisseur</span>
               <select id="providerSelect">
                 <option value="gemini">Google Gemini (gratuit)</option>
+                <option value="claude">Anthropic Claude</option>
+                <option value="groq">Groq (gratuit, très rapide)</option>
                 <option value="openai">OpenAI</option>
                 <option value="openrouter">OpenRouter</option>
-                <option value="groq">Groq</option>
                 <option value="ollama">Ollama (local)</option>
                 <option value="custom">Personnalisé…</option>
               </select>

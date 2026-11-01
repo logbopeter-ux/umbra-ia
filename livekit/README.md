@@ -36,7 +36,7 @@ doit simplement être lancé.
 |---|---|
 | `LIVEKIT_URL` / `_API_KEY` / `_API_SECRET` | identifiants LiveKit Cloud |
 | `GOOGLE_API_KEY` | clé Gemini (gratuite sur aistudio.google.com) |
-| `UMBRA_LIVE_MODEL` | modèle temps réel (`gemini-live-2.5-flash-preview`) |
+| `UMBRA_LIVE_MODEL` | modèle temps réel (`gemini-2.5-flash-native-audio-latest`) |
 | `UMBRA_LIVE_VOICE` | voix : `Charon` (grave, posée), `Puck`, `Kore`, `Fenrir`, `Aoede`… |
 | `UMBRA_VOICE_AUTOCONFIRM` | `1` = actions directes, `0` = confirmation orale |
 
@@ -47,3 +47,25 @@ doit simplement être lancé.
 
 Chacun est une enveloppe HTTP de 3 lignes vers `/api/tool` : une seule source de
 vérité avec l'application web, donc aucun risque de divergence.
+
+## Modèle temps réel
+
+Le modèle par défaut est `gemini-2.5-flash-native-audio-latest` (audio natif :
+Gemini écoute et parle lui-même, sans STT/TTS séparés).
+
+> ⚠️ L'ancien `gemini-live-2.5-flash-preview` **n'est plus servi aux nouvelles
+> clés API**. Si tu vois `404 model not found`, c'est cette raison.
+
+Pour changer de modèle sans toucher au code :
+
+```bash
+# dans livekit/.env.local
+UMBRA_LIVE_MODEL=gemini-3.1-flash-live-preview
+UMBRA_LIVE_VOICE=Charon
+UMBRA_LIVE_TEMPERATURE=0.8
+```
+
+Modèles temps réel disponibles (vérifiés sur l'API) :
+`gemini-2.5-flash-native-audio-latest`,
+`gemini-2.5-flash-native-audio-preview-12-2025`,
+`gemini-3.1-flash-live-preview`, `gemini-3.8-live`.

@@ -57,6 +57,8 @@ else
       --exclude='*keystore.properties' --exclude='*keystore*' \
       --exclude='*.jks' --exclude='*.keystore' \
       --exclude='*/.gradle' --exclude='*/.gradle/*' \
+      --exclude='*capacitor-cordova-android-plugins/build*' \
+      --exclude='*app/src/main/assets*' \
       --exclude='*android/build' --exclude='*android/build/*' \
       --exclude='*app/build' --exclude='*app/build/*' \
       --exclude='*apk/*' --exclude='*data/*' --exclude='*shots*' --exclude='.git' \

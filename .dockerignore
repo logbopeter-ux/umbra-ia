@@ -14,3 +14,8 @@ data
 shots
 *.log
 .DS_Store
+mobile
+apk
+*.zip
+UMBRA-*
+*.base64

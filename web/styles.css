@@ -401,6 +401,7 @@ a:hover { text-decoration: underline; }
   animation: toast-in 0.25s ease;
 }
 .toast.error { border-color: rgba(255, 107, 94, 0.5); color: #ffd9d4; }
+.toast.info { border-color: rgba(245, 178, 62, 0.45); color: #ffe3b0; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(10px); } }
 
 /* ---------- Responsive ---------- */
@@ -478,3 +479,105 @@ a:hover { text-decoration: underline; }
 .connect-hints { margin-top: 16px; text-align: left; font-size: 12.5px; color: var(--fg-muted); display: grid; gap: 6px; }
 .connect-hints p { margin: 0; }
 .connect-hints code { font-family: var(--font-mono); background: var(--card-2); padding: 1px 5px; border-radius: 5px; font-size: 11.5px; }
+
+/* ═══════════ Pièces jointes ═══════════ */
+
+.composer-zone { position: relative; max-width: 820px; margin: 0 auto; }
+
+/* bouton trombone, à gauche du champ */
+.icon-btn.clip { width: 36px; height: 36px; flex: 0 0 auto; color: var(--fg-muted); border-radius: 50%; }
+.icon-btn.clip:hover { color: var(--accent); background: rgba(245, 178, 62, 0.1); }
+.icon-btn.clip.busy { opacity: 0.45; pointer-events: none; }
+
+/* bouton « aller à la ligne », distinct du bouton d'envoi */
+.icon-btn.nl { width: 36px; height: 36px; color: var(--fg-muted); border-radius: 50%; }
+.icon-btn.nl:hover { color: var(--accent); background: rgba(245, 178, 62, 0.1); }
+
+/* bande d'aperçus au-dessus du champ */
+.pieces {
+  display: flex; flex-wrap: wrap; gap: 8px; margin: 0 4px 8px; padding-bottom: 2px;
+}
+.pieces[hidden] { display: none; }
+
+.piece {
+  position: relative; display: flex; align-items: center; gap: 9px;
+  max-width: 260px; padding: 6px 30px 6px 6px;
+  background: var(--card); border: 1px solid var(--border-strong);
+  border-radius: 12px; animation: pieceIn 0.18s ease-out;
+}
+@keyframes pieceIn { from { opacity: 0; transform: translateY(4px); } }
+
+.piece-thumb {
+  width: 42px; height: 42px; flex: 0 0 auto; border-radius: 8px; object-fit: cover;
+  background: var(--bg-soft, rgba(255, 255, 255, 0.05));
+}
+.piece-ico {
+  width: 42px; height: 42px; flex: 0 0 auto; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; background: rgba(245, 178, 62, 0.12); color: var(--accent);
+}
+.piece-txt { min-width: 0; }
+.piece-nom {
+  display: block; font-size: 12.5px; color: var(--fg);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;
+}
+.piece-meta { display: block; font-size: 10.5px; color: var(--fg-muted); margin-top: 1px; }
+.piece-x {
+  position: absolute; top: 4px; right: 4px; width: 20px; height: 20px;
+  border: 0; border-radius: 50%; cursor: pointer; line-height: 1;
+  background: rgba(0, 0, 0, 0.35); color: var(--fg-muted); font-size: 12px;
+  display: flex; align-items: center; justify-content: center;
+}
+.piece-x:hover { background: var(--danger, #e5484d); color: #fff; }
+.piece.envoi { opacity: 0.65; }
+.piece.envoi .piece-thumb, .piece.envoi .piece-ico { animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.5; } }
+
+/* voile de dépôt */
+.drop-veil {
+  position: absolute; inset: -6px; z-index: 5; border-radius: 24px;
+  border: 2px dashed var(--accent); background: rgba(10, 10, 12, 0.82);
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none; backdrop-filter: blur(2px);
+}
+.drop-veil[hidden] { display: none; }
+.drop-card { text-align: center; color: var(--accent); font-size: 15px; font-weight: 600; }
+.drop-card small { display: block; margin-top: 4px; font-size: 11.5px; font-weight: 400; color: var(--fg-muted); }
+
+/* pièces jointes dans les bulles de l'historique */
+.msg-files { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.msg-files .piece { max-width: 220px; padding: 5px 8px 5px 5px; background: rgba(0, 0, 0, 0.18); }
+.msg-file-shot { max-width: 210px; max-height: 210px; border-radius: 10px; display: block; margin-top: 8px; border: 1px solid var(--border-strong); }
+.msg.user .bubble { max-width: 78%; }
+
+@media (max-width: 560px) {
+  .icon-btn.clip, .icon-btn.nl { width: 34px; height: 34px; }
+  .piece-nom { max-width: 110px; }
+  .composer-zone { margin: 0 0 4px; }
+}
+
+/* pièces jointes dans l'historique : pas de bouton ✕, carte compacte */
+.msg-files .piece { padding: 5px 9px 5px 5px; max-width: 240px; }
+.msg-files .piece-ico { width: 34px; height: 34px; font-size: 15px; }
+.msg-files .piece-nom { max-width: 150px; font-size: 12px; }
+.msg.user .bubble { overflow-wrap: anywhere; }
+.msg-file-shot { cursor: zoom-in; transition: opacity 0.15s; }
+.msg-file-shot:hover { opacity: 0.88; }
+
+/* agrandissement d'image */
+.lightbox {
+  position: fixed; inset: 0; z-index: 200; display: flex;
+  align-items: center; justify-content: center; padding: 4vh 4vw;
+  background: rgba(6, 6, 8, 0.9); backdrop-filter: blur(3px);
+  cursor: zoom-out; animation: fadeIn 0.16s ease-out;
+}
+.lightbox img {
+  max-width: 100%; max-height: 100%; border-radius: 10px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6); object-fit: contain;
+}
+.lightbox-x {
+  position: absolute; top: 18px; right: 20px; width: 38px; height: 38px;
+  border: 1px solid var(--border-strong); border-radius: 50%; cursor: pointer;
+  background: rgba(20, 20, 24, 0.85); color: var(--fg); font-size: 15px;
+}
+@keyframes fadeIn { from { opacity: 0; } }

@@ -10,9 +10,40 @@ ordinateur, téléphone, et une voix temps réel — en suivant l'architecture d
 |---|---|
 | **Version** | 2.0.0 |
 | **Type** | PWA + application desktop (Electron) + **APK Android** + agent vocal (LiveKit) + version en ligne protégée par mot de passe |
-| **Cerveau** | Gemini (gratuit) ou OpenAI / OpenRouter / Groq / Ollama — au choix |
+| **Cerveau** | Gemini (gratuit), **Claude**, **Groq**, OpenAI, OpenRouter, Ollama — **bascule automatique**, vision sur les images |
+| **Pièces jointes** | photos, PDF, Word, Excel, PowerPoint, EPUB, texte, code — lecture réelle par le serveur, sans dépendance |
 | **Données** | 100 % locales (navigateur + fichiers sur ta machine) — ou ton propre serveur |
-| **Tests** | 29 tests automatisés (`npm test`) — tous verts |
+| **Tests** | 93 tests automatisés (`npm test`) — tous verts |
+
+---
+
+## 🏠 Un cerveau qui ne tombe jamais
+
+Derrière Gemini, Groq et Claude, Umbra garde un **quatrième cerveau sur ta
+machine** : [Ollama](https://ollama.com). Pas de clé, pas de quota, pas
+d'internet. Elle le détecte toute seule et ne s'en sert qu'en dernier recours.
+
+```bash
+curl -fsSL https://ollama.com/install.sh | sh && ollama pull llama3.1
+```
+
+→ Détails : [`docs/CERVEAUX.md`](docs/CERVEAUX.md)
+
+---
+
+## 📎 Photos, PDF, documents
+
+Umbra lit ce que vous lui donnez. Un trombone à gauche du champ, un glisser-déposer,
+un `Ctrl+V` : la photo, le PDF, le Word, l'Excel ou le fichier de code arrivent
+directement dans la conversation.
+
+- **Images** — elle regarde vraiment : elle décrit, lit le texte, répond
+- **PDF, Word, Excel, PowerPoint, OpenDocument, EPUB** — le texte est extrait et analysé
+- **Texte, données, code** — lus tels quels
+
+→ Formats pris en charge, limites et fonctionnement : [`docs/FICHIERS.md`](docs/FICHIERS.md)
+→ Installer la mise à jour sur le téléphone : [`docs/MAJ-APK.md`](docs/MAJ-APK.md)
+→ Mettre à jour GitHub puis déployer sur Render : [`docs/DEPLOYER-RENDER.md`](docs/DEPLOYER-RENDER.md)
 
 ---
 
@@ -28,6 +59,20 @@ Ouvre **http://localhost:4173**. C'est tout : l'app démarre même sans clé API
 
 **Pour la vraie intelligence** : icône ⚙️ **Réglages** → colle une clé
 [Gemini gratuite](https://aistudio.google.com/apikey) → « Tester la connexion ».
+
+**Changer de cerveau** : Réglages → Fournisseur. Six choix, dont
+**Claude** (Anthropic) et **Groq**, avec les modèles 2026 déjà pré-remplis.
+Comparatif, prix et dépannage : [`docs/CERVEAUX.md`](docs/CERVEAUX.md).
+
+**Bascule automatique** : si un fournisseur tombe (quota épuisé, panne, clé
+refusée), Umbra enchaîne seule sur le suivant — la conversation ne s'arrête
+jamais. Activez-la en trois lignes dans `.env` :
+
+```env
+LLM_FALLBACKS=groq,claude
+GROQ_API_KEY=gsk_…
+ANTHROPIC_API_KEY=sk-ant-…
+```
 La clé reste dans ton navigateur, elle n'est jamais stockée sur un serveur.
 
 ---
@@ -159,7 +204,7 @@ lk agent dev
 | 7 | **Mémoire complète** : ajout, édition, suppression, oubli par Umbra | ✅ |
 | 8 | **Réglages** : fournisseur, modèle, liste des modèles, test de connexion, vitesse de voix, prénom | ✅ |
 | 9 | **Confidentialité** : page dédiée, export/import, effacement total, clé jamais écrite côté serveur | ✅ |
-| 10 | **Zéro dépendance serveur** (Node 20 pur) + 15 tests automatisés | ✅ |
+| 10 | **Zéro dépendance serveur** (Node 20 pur) + 93 tests automatisés | ✅ |
 | 11 | **Voix temps réel LiveKit + Gemini Live** (guide JARVIS) | ✅ |
 | 12 | Sous-domaine/URL propre | ⏳ à faire côté hébergement (voir §8) |
 
@@ -190,7 +235,7 @@ umbra-ia/
 ├── Dockerfile         # image de production (Node 20, sans dépendance)
 ├── docker-compose.yml # déploiement en une commande
 ├── scripts/           # generate-password.sh, make-icons.py…
-├── tests/             # 29 tests (node --test)
+├── tests/             # 93 tests (node --test)
 └── docs/              # guides d'installation et plan détaillé
 ```
 

@@ -116,7 +116,7 @@ métadonnées et les icônes sont déjà « Umbra IA ».
 
 | Test | Résultat |
 |---|---|
-| `npm test` (15 tests : outils, API, SSE, PWA) | ✅ 15/15 |
+| `npm test` (15 tests : outils, API, SSE, PWA) | ✅ — depuis porté à **29** avec l'authentification |
 | Recherche web réelle (DuckDuckGo) | ✅ résultats avec titres + extraits |
 | Calcul, date, notes, Python | ✅ |
 | Navigation pilotée (goto/read/screenshot/close) | ✅ Chromium |

@@ -8,7 +8,7 @@ FROM node:20-alpine
 
 LABEL org.opencontainers.image.title="Umbra IA" \
       org.opencontainers.image.description="Assistant personnel : chat, voix et actions réelles" \
-      org.opencontainers.image.version="2.0.0"
+      org.opencontainers.image.version="2.1.0"
 
 WORKDIR /app
 
@@ -28,7 +28,7 @@ COPY web ./web
 COPY desktop ./desktop
 
 # Dossiers de données inscriptibles par l'utilisateur non privilégié
-RUN mkdir -p /app/data/notes /app/data/screenshots /app/data/python \
+RUN mkdir -p /app/data/notes /app/data/screenshots /app/data/python /app/data/fichiers \
     && chown -R node:node /app
 
 USER node

@@ -32,7 +32,12 @@ load_dotenv(dotenv_path=Path(__file__).resolve().parents[1] / ".env.local")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("umbra")
 
-MODEL = os.getenv("UMBRA_LIVE_MODEL", "gemini-live-2.5-flash-preview")
+# Modèle temps réel. « gemini-live-2.5-flash-preview » n'est plus proposé aux
+# nouvelles clés API ; l'alias « -latest » ci-dessous pointe sur la version
+# native-audio courante. Alternatives disponibles (vérifiées sur l'API) :
+#   gemini-2.5-flash-native-audio-preview-12-2025
+#   gemini-3.1-flash-live-preview   (plus récent, parfois saturé)
+MODEL = os.getenv("UMBRA_LIVE_MODEL", "gemini-2.5-flash-native-audio-latest")
 VOICE = os.getenv("UMBRA_LIVE_VOICE", "Charon")
 TEMPERATURE = float(os.getenv("UMBRA_LIVE_TEMPERATURE", "0.8"))
 

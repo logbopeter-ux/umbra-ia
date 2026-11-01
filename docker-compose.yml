@@ -22,6 +22,12 @@ services:
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_BASE_URL: ${LLM_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai}
       LLM_MODEL: ${LLM_MODEL:-gemini-3.5-flash}
+      # ── secours automatique ──
+      LLM_FALLBACKS: ${LLM_FALLBACKS:-groq,claude}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       # ── identité ──
       UMBRA_USER_NAME: ${UMBRA_USER_NAME:-Monsieur}
       UMBRA_TIMEZONE: ${UMBRA_TIMEZONE:-Africa/Porto-Novo}

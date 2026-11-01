@@ -70,7 +70,15 @@ export function createAuth(env = process.env) {
   function tokenFromHeader(req) {
     const raw = String(req.headers.authorization || '');
     const m = /^Bearer\s+(.+)$/i.exec(raw.trim());
-    return m ? m[1].trim() : '';
+    if (m) return m[1].trim();
+    // Une balise <img> ne peut pas porter d'en-tête : le jeton peut venir de
+    // l'adresse (?t=…), uniquement pour les images de l'historique.
+    try {
+      const jeton = new URL(req.url, 'http://localhost').searchParams.get('t');
+      return jeton ? String(jeton) : '';
+    } catch {
+      return '';
+    }
   }
 
   function isAuthenticated(req) {

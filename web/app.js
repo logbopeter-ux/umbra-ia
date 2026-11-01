@@ -81,12 +81,49 @@ const LS = {
 };
 
 const PROVIDERS = {
-  gemini: { baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-3.5-flash' },
-  openai: { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
-  openrouter: { baseUrl: 'https://openrouter.ai/api/v1', model: 'google/gemini-3.5-flash' },
-  groq: { baseUrl: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile' },
-  ollama: { baseUrl: 'http://localhost:11434/v1', model: 'llama3.1' },
-  custom: { baseUrl: '', model: '' },
+  gemini: {
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+    model: 'gemini-3.5-flash',
+    keyHint: 'AIza… (clé Gemini gratuite)',
+    models: ['gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-flash-latest', 'gemini-2.5-flash-lite'],
+  },
+  claude: {
+    baseUrl: 'https://api.anthropic.com/v1',
+    model: 'claude-sonnet-5-5',
+    keyHint: 'sk-ant-… (clé Anthropic)',
+    models: ['claude-sonnet-5-5', 'claude-haiku-5-5', 'claude-opus-5-5', 'claude-sonnet-4-6'],
+  },
+  openai: {
+    baseUrl: 'https://api.openai.com/v1',
+    model: 'gpt-4o-mini',
+    keyHint: 'sk-… (clé OpenAI)',
+    models: ['gpt-4o-mini', 'gpt-4o'],
+  },
+  groq: {
+    baseUrl: 'https://api.groq.com/openai/v1',
+    model: 'openai/gpt-oss-120b',
+    keyHint: 'gsk_… (clé Groq, gratuite)',
+    models: ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'llama-3.3-70b-versatile', 'qwen/qwen3.8-27b'],
+  },
+  openrouter: {
+    baseUrl: 'https://openrouter.ai/api/v1',
+    model: 'google/gemini-3.5-flash',
+    keyHint: 'sk-or-… (clé OpenRouter)',
+    models: ['google/gemini-3.5-flash', 'anthropic/claude-sonnet-5.5', 'openai/gpt-4o-mini'],
+  },
+  ollama: { baseUrl: 'http://localhost:11434/v1', model: 'llama3.1', keyHint: 'laisser vide', models: [] },
+  custom: { baseUrl: '', model: '', keyHint: '', models: [] },
+};
+
+/** Noms lisibles des fournisseurs (pour le bandeau d'état). */
+const LIBELLES = {
+  gemini: 'Gemini',
+  claude: 'Claude',
+  groq: 'Groq',
+  openai: 'OpenAI',
+  openrouter: 'OpenRouter',
+  ollama: 'Ollama',
+  custom: 'Personnalisé',
 };
 
 const DEFAULT_SETTINGS = {
@@ -124,6 +161,8 @@ const state = {
   health: null,
   streaming: false,
   controller: null,
+  pending: [], // pièces jointes en attente d'envoi
+  uploading: 0,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -433,7 +472,18 @@ function renderHeader() {
   const live = state.health?.live;
   chip.textContent = live ? 'en ligne' : 'démo';
   chip.className = `status-chip ${live ? 'live' : 'demo'}`;
-  chip.title = live ? `Modèle : ${state.settings.model}` : 'Aucune clé API : Umbra fonctionne en mode démonstration.';
+
+  // Cerveau réellement actif : celui du serveur si l'on n'a pas sa propre clé.
+  const actif = state.health?.active?.label || LIBELLES[state.settings.provider] || '';
+  const modele = state.health?.active?.model || state.health?.model || state.settings.model;
+  const secours = (state.health?.brains || []).slice(1).map((b) => b.label);
+
+  if (!live) {
+    chip.title = 'Aucune clé API : Umbra fonctionne en mode démonstration.';
+  } else {
+    const liste = secours.length ? `\nSecours automatique : ${secours.join(' → ')}` : '';
+    chip.title = `Cerveau : ${actif || '?'} (${modele})${liste}`;
+  }
 }
 
 function renderModes() {
@@ -492,7 +542,12 @@ function messageNode(m) {
   if (m.role === 'user') {
     const wrap = document.createElement('div');
     wrap.className = 'msg user';
-    wrap.innerHTML = `<div class="bubble">${escapeHtml(m.content)}</div>`;
+    const bulle = document.createElement('div');
+    bulle.className = 'bubble';
+    if (m.content) bulle.innerHTML = escapeHtml(m.content);
+    const fichiers = blocPieces(m);
+    if (fichiers) bulle.appendChild(fichiers);
+    wrap.appendChild(bulle);
     return wrap;
   }
 
@@ -599,6 +654,263 @@ function scrollToBottom() {
   box.scrollTop = box.scrollHeight;
 }
 
+
+/* ─────────────── Pièces jointes (photos, PDF, documents) ─────────────── */
+
+const LIMITE_PIECE = 25 * 1024 * 1024;
+const ICONES_PIECE = { image: '🖼️', document: '📄', media: '🎬', inconnu: '📦' };
+
+const poidsLisible = (o) => (o >= 1048576 ? `${(o / 1048576).toFixed(1)} Mo` : `${Math.max(1, Math.round(o / 1024))} Ko`);
+
+/** URL d'une pièce jointe stockée sur le serveur (les <img> ne portent pas d'en-tête). */
+function urlPiece(f) {
+  if (!f?.id) return f?.apercuUrl || '';
+  const base = apiUrl(`/api/fichiers/${encodeURIComponent(f.id)}`);
+  const t = getToken();
+  return t ? `${base}?t=${encodeURIComponent(t)}` : base;
+}
+
+function fichierVersDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result || ''));
+    r.onerror = () => reject(new Error('Lecture du fichier impossible.'));
+    r.readAsDataURL(file);
+  });
+}
+
+function chargerImage(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Image illisible.'));
+    };
+    img.src = url;
+  });
+}
+
+/**
+ * Les photos de téléphone pèsent 4 à 8 Mo et 4000 px de large : inutile de les
+ * envoyer tel quel. On les réduit à 1600 px (au-delà, aucun modèle ne gagne en
+ * détail) — l'envoi passe de plusieurs secondes à un instant.
+ */
+async function preparerImage(file) {
+  const brut = await fichierVersDataUrl(file).catch(() => null);
+  if (!brut) return null;
+  if (file.size <= 700 * 1024) return { dataUrl: brut, mime: file.type || 'image/jpeg' };
+
+  const img = await chargerImage(file).catch(() => null);
+  if (!img || !img.width) return { dataUrl: brut, mime: file.type || 'image/jpeg' };
+
+  const max = 1600;
+  const echelle = Math.min(1, max / Math.max(img.width, img.height));
+  if (echelle === 1 && file.size <= 2 * 1024 * 1024) return { dataUrl: brut, mime: file.type || 'image/jpeg' };
+
+  const toile = document.createElement('canvas');
+  toile.width = Math.round(img.width * echelle);
+  toile.height = Math.round(img.height * echelle);
+  const ctx = toile.getContext('2d');
+  ctx.drawImage(img, 0, 0, toile.width, toile.height);
+  const mime = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+  return { dataUrl: toile.toDataURL(mime, 0.86), mime };
+}
+
+function retirerPiece(id) {
+  const f = state.pending.find((x) => x.id === id);
+  state.pending = state.pending.filter((x) => x.id !== id);
+  renderPieces();
+  // Libère le fichier côté serveur s'il a déjà été envoyé et n'est pas utilisé.
+  if (f?.serveur) fetch(apiUrl(`/api/fichiers/${encodeURIComponent(f.id)}`), net({ method: 'DELETE' })).catch(() => {});
+}
+
+function renderPieces() {
+  const zone = $('pieces');
+  if (!zone) return;
+  zone.innerHTML = '';
+  zone.hidden = state.pending.length === 0;
+
+  for (const f of state.pending) {
+    const carte = document.createElement('div');
+    carte.className = `piece${f.enCours ? ' envoi' : ''}`;
+
+    const apercu = f.apercuUrl || (f.categorie === 'image' && f.serveur ? urlPiece(f) : '');
+    if (apercu) {
+      const img = document.createElement('img');
+      img.className = 'piece-thumb';
+      img.src = apercu;
+      img.alt = '';
+      carte.appendChild(img);
+    } else {
+      const ico = document.createElement('div');
+      ico.className = 'piece-ico';
+      ico.textContent = ICONES_PIECE[f.categorie] || '📄';
+      carte.appendChild(ico);
+    }
+
+    const txt = document.createElement('div');
+    txt.className = 'piece-txt';
+    const nom = document.createElement('span');
+    nom.className = 'piece-nom';
+    nom.textContent = f.nom || 'fichier';
+    nom.title = f.nom || '';
+    const meta = document.createElement('span');
+    meta.className = 'piece-meta';
+    meta.textContent = f.enCours ? 'envoi…' : [f.info, poidsLisible(f.taille)].filter(Boolean).join(' · ');
+    txt.append(nom, meta);
+    carte.appendChild(txt);
+
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'piece-x';
+    x.textContent = '✕';
+    x.title = 'Retirer';
+    x.setAttribute('aria-label', `Retirer ${f.nom || 'le fichier'}`);
+    x.addEventListener('click', () => retirerPiece(f.id));
+    carte.appendChild(x);
+
+    zone.appendChild(carte);
+  }
+}
+
+/** Envoie un fichier au serveur, qui en extrait le texte (ou garde l'image). */
+async function ajouterFichier(file) {
+  if (!file) return;
+  if (file.size > LIMITE_PIECE) {
+    toast(`${file.name} dépasse 25 Mo : impossible de l'envoyer.`, 'error');
+    return;
+  }
+
+  const local = `local-${uid()}`;
+  const estImage = String(file.type || '').startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp|heic|avif)$/i.test(file.name);
+  const provisoire = { id: local, nom: file.name, taille: file.size, categorie: estImage ? 'image' : 'document', enCours: true };
+  state.pending.push(provisoire);
+  state.uploading++;
+  $('clipBtn').classList.add('busy');
+  renderPieces();
+
+  try {
+    let dataUrl;
+    let mime = file.type || 'application/octet-stream';
+    if (estImage) {
+      const prep = await preparerImage(file);
+      if (!prep) throw new Error('Image illisible.');
+      dataUrl = prep.dataUrl;
+      mime = prep.mime;
+      provisoire.apercuUrl = dataUrl;
+      provisoire.taille = Math.round((dataUrl.length * 3) / 4);
+      renderPieces();
+    } else {
+      dataUrl = await fichierVersDataUrl(file);
+    }
+
+    const res = await fetch(apiUrl('/api/fichiers'), net({
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...llmHeaders() },
+      body: JSON.stringify({ nom: file.name, mime, data: String(dataUrl).split(',')[1] || '' }),
+    }));
+
+    if (handleUnauthorized(res)) return;
+    const meta = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(meta.error || `Envoi impossible (${res.status}).`);
+
+    Object.assign(provisoire, meta, { id: meta.id, enCours: false, serveur: true });
+    if (meta.categorie !== 'image') provisoire.apercuUrl = '';
+    if (meta.avertissement) toast(meta.avertissement, 'info');
+  } catch (e) {
+    state.pending = state.pending.filter((x) => x.id !== local);
+    toast(e.message || "Impossible d'ajouter ce fichier.", 'error');
+  } finally {
+    state.uploading = Math.max(0, state.uploading - 1);
+    if (!state.uploading) $('clipBtn').classList.remove('busy');
+    renderPieces();
+  }
+}
+
+function ajouterFichiers(list) {
+  const fichiers = [...(list || [])];
+  if (!fichiers.length) return;
+  const images = state.pending.filter((f) => f.categorie === 'image').length;
+  let restantes = 6 - images;
+  for (const f of fichiers) {
+    const estImage = String(f.type || '').startsWith('image/');
+    if (estImage && restantes-- <= 0) {
+      toast('Six images au maximum par message.', 'info');
+      continue;
+    }
+    ajouterFichier(f);
+  }
+}
+
+/** Affiche les pièces jointes d'un message dans l'historique. */
+/** Ouvre une image en grand, sans quitter Umbra. */
+function agrandirImage(src, nom = '') {
+  if (!src) return;
+  const voile = document.createElement('div');
+  voile.className = 'lightbox';
+  const img = document.createElement('img');
+  img.src = src;
+  img.alt = nom;
+  const fermer = document.createElement('button');
+  fermer.className = 'lightbox-x';
+  fermer.textContent = '✕';
+  fermer.setAttribute('aria-label', 'Fermer');
+  voile.append(img, fermer);
+  const sortir = () => voile.remove();
+  voile.addEventListener('click', (e) => {
+    if (e.target === voile || e.target === fermer) sortir();
+  });
+  document.addEventListener('keydown', function esc(e) {
+    if (e.key === 'Escape') {
+      sortir();
+      document.removeEventListener('keydown', esc);
+    }
+  });
+  document.body.appendChild(voile);
+}
+
+function blocPieces(m) {
+  const liste = Array.isArray(m.attachments) ? m.attachments : [];
+  if (!liste.length) return null;
+  const boite = document.createElement('div');
+  boite.className = 'msg-files';
+  for (const f of liste) {
+    if (f.categorie === 'image') {
+      const img = document.createElement('img');
+      img.className = 'msg-file-shot';
+      img.src = urlPiece(f);
+      img.alt = f.nom || 'image jointe';
+      img.title = `${f.nom || 'image'} — cliquer pour agrandir`;
+      img.loading = 'lazy';
+      img.addEventListener('click', () => agrandirImage(img.src, f.nom));
+      boite.appendChild(img);
+    } else {
+      const carte = document.createElement('div');
+      carte.className = 'piece';
+      const ico = document.createElement('div');
+      ico.className = 'piece-ico';
+      ico.textContent = ICONES_PIECE[f.categorie] || '📄';
+      const txt = document.createElement('div');
+      txt.className = 'piece-txt';
+      const nom = document.createElement('span');
+      nom.className = 'piece-nom';
+      nom.textContent = f.nom || 'fichier';
+      const meta = document.createElement('span');
+      meta.className = 'piece-meta';
+      meta.textContent = [f.info, f.taille ? poidsLisible(f.taille) : ''].filter(Boolean).join(' · ');
+      txt.append(nom, meta);
+      carte.append(ico, txt);
+      boite.appendChild(carte);
+    }
+  }
+  return boite;
+}
+
 /* ─────────────── Envoi & streaming ─────────────── */
 
 function setStreaming(on) {
@@ -607,7 +919,7 @@ function setStreaming(on) {
   $('stopBtn').hidden = !on;
   $('composerHint').textContent = on
     ? 'Umbra travaille… clique sur ■ pour arrêter.'
-    : 'Entrée pour envoyer · Maj+Entrée pour un retour à la ligne';
+    : 'Entrée pour envoyer · Maj+Entrée ou ↵ pour aller à la ligne · 📎 pour joindre une photo, un PDF, un document';
 }
 
 function stopStreaming() {
@@ -618,14 +930,39 @@ function stopStreaming() {
 
 async function sendMessage(text) {
   const content = String(text || '').trim();
-  if (!content || state.streaming) return;
+  const joints = state.pending.filter((f) => !f.enCours && f.serveur);
+  if ((!content && !joints.length) || state.streaming) return;
+  if (state.uploading) {
+    toast('Un instant : le fichier est encore en cours d\'envoi.', 'info');
+    return;
+  }
 
   const thread = ensureThread();
-  const userMsg = { id: uid(), role: 'user', content, time: nowHHMM() };
+  const userMsg = {
+    id: uid(),
+    role: 'user',
+    content,
+    time: nowHHMM(),
+    ...(joints.length
+      ? {
+          attachments: joints.map((f) => ({
+            id: f.id,
+            nom: f.nom,
+            mime: f.mime,
+            taille: f.taille,
+            categorie: f.categorie,
+            info: f.info,
+          })),
+        }
+      : {}),
+  };
   thread.messages.push(userMsg);
   if (thread.messages.filter((m) => m.role === 'user').length === 1) {
-    thread.title = content.slice(0, 48) + (content.length > 48 ? '…' : '');
+    const titre = (content || joints[0]?.nom || 'Pièce jointe').replace(/\s+/g, ' ').trim();
+    thread.title = titre.slice(0, 48) + (titre.length > 48 ? '…' : '');
   }
+  state.pending = [];
+  renderPieces();
   thread.updatedAt = Date.now();
   persistThreads();
 
@@ -656,8 +993,12 @@ async function sendMessage(text) {
   state.controller = new AbortController();
 
   const history = thread.messages
-    .filter((m) => m.id !== assistant.id && (m.role === 'user' || m.role === 'assistant') && m.content)
-    .map((m) => ({ role: m.role, content: m.content }));
+    .filter((m) => m.id !== assistant.id && (m.role === 'user' || m.role === 'assistant') && (m.content || m.attachments?.length))
+    .map((m) => ({
+      role: m.role,
+      content: m.content || '',
+      ...(m.attachments?.length ? { attachments: m.attachments } : {}),
+    }));
 
   try {
     const res = await fetch(apiUrl('/api/chat'), net({
@@ -731,12 +1072,6 @@ async function sendMessage(text) {
     }
     prose.innerHTML = renderMarkdown(assistant.content);
   } finally {
-    // Un message assistant vide (échec du fournisseur) ne doit pas être conservé :
-    // renvoyé au modèle au tour suivant, il fait échouer TOUTE la conversation
-    // en 400 (l'API refuse les contenus vides). L'erreur reste affichée à l'écran.
-    if (!assistant.content && assistant.error) {
-      thread.messages = thread.messages.filter((m) => m !== assistant);
-    }
     setStreaming(false);
     state.controller = null;
     thread.updatedAt = Date.now();
@@ -796,6 +1131,13 @@ function handleEvent(ev, ctx) {
       }
       if (ev.client_action) runClientAction(ev.client_action);
       scrollToBottom();
+      break;
+    }
+    case 'failover': {
+      // Un cerveau a lâché : on le signale sans interrompre la conversation.
+      toast(`${ev.de} indisponible — ${ev.vers} prend le relais.`, 'info');
+      assistant.failover = assistant.failover || [];
+      assistant.failover.push({ de: ev.de, vers: ev.vers });
       break;
     }
     case 'error': {
@@ -896,6 +1238,7 @@ function fillSettingsForm() {
   $('providerSelect').value = s.provider;
   $('baseUrl').value = s.baseUrl;
   $('apiKey').value = s.apiKey;
+  $('apiKey').placeholder = PROVIDERS[s.provider]?.keyHint || 'Clé API (stockée uniquement sur cet appareil)';
   $('model').value = s.model;
   $('voiceReplies').checked = s.voiceReplies;
   $('voiceRate').value = String(s.voiceRate);
@@ -1260,12 +1603,12 @@ function setMode(mode) {
 
 /**
  * Le carnet de notes vit sur le serveur, pas dans le navigateur : il faut le
- * demander à l'API. Sur une offre gratuite (disque éphémère), c'est la seule
- * façon de ne pas perdre les notes au réveil du service.
+ * demander à l'API. Sur un hébergement à disque éphémère, c'est la seule façon
+ * de ne pas perdre les notes au redéploiement.
  */
-async function fetchServerNotes() {
+async function notesDuServeur() {
   try {
-    const r = await fetch(`${getServer()}/api/notes/export`, net());
+    const r = await fetch(apiUrl('/api/notes/export'), net());
     if (!r.ok) return null;
     const d = await r.json();
     return Array.isArray(d.notes) ? d.notes : null;
@@ -1274,10 +1617,10 @@ async function fetchServerNotes() {
   }
 }
 
-async function pushServerNotes(notes) {
+async function pousserNotes(notes) {
   try {
     const r = await fetch(
-      `${getServer()}/api/notes/import`,
+      apiUrl('/api/notes/import'),
       net({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notes }) }),
     );
     if (!r.ok) return null;
@@ -1288,7 +1631,8 @@ async function pushServerNotes(notes) {
 }
 
 async function exportData() {
-  const notes = await fetchServerNotes();
+  toast('Préparation de l\'export…');
+  const notes = await notesDuServeur();
   const data = {
     version: 3,
     exportedAt: new Date().toISOString(),
@@ -1303,7 +1647,7 @@ async function exportData() {
   a.download = `umbra-donnees-${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   URL.revokeObjectURL(a.href);
-  if (notes === null) toast('Données exportées (sans la clé API). Carnet de notes injoignable.');
+  if (notes === null) toast('Données exportées (sans la clé API). Carnet de notes injoignable.', 'info');
   else toast(`Données exportées : conversations, souvenirs et ${notes.length} note(s).`);
 }
 
@@ -1324,11 +1668,12 @@ function importData(file) {
         toast('Données importées.');
         return;
       }
-      pushServerNotes(notes).then((res) => {
-        if (!res) toast('Données importées, mais le carnet de notes n\'a pas pu être restauré.', 'error');
+      pousserNotes(notes).then((res) => {
+        if (!res) toast('Données importées, mais le carnet n\'a pas pu être restauré.', 'error');
         else if (res.skipped?.length) toast(`Données importées : ${res.imported} note(s) restaurée(s), ${res.skipped.length} ignorée(s).`);
         else toast(`Données importées : ${res.imported} note(s) restaurée(s).`);
       });
+      toast('Données importées.');
     } catch {
       toast('Fichier invalide.', 'error');
     }
@@ -1402,6 +1747,58 @@ function wire() {
   $('micBtn').addEventListener('click', toggleMic);
   $('stopBtn').addEventListener('click', stopStreaming);
 
+  /* ── pièces jointes ── */
+  $('clipBtn').addEventListener('click', () => $('fileInput').click());
+  $('fileInput').addEventListener('change', (e) => {
+    ajouterFichiers(e.target.files);
+    e.target.value = ''; // permet de renvoyer deux fois le même fichier
+  });
+
+  // Coller une image depuis le presse-papiers (Ctrl+V)
+  $('input').addEventListener('paste', (e) => {
+    const fichiers = [...(e.clipboardData?.files || [])];
+    if (!fichiers.length) return;
+    e.preventDefault();
+    ajouterFichiers(fichiers);
+  });
+
+  // Glisser-déposer, où que ce soit dans la fenêtre
+  let profondeur = 0;
+  const contientDesFichiers = (e) => [...(e.dataTransfer?.types || [])].includes('Files');
+  document.addEventListener('dragenter', (e) => {
+    if (!contientDesFichiers(e)) return;
+    profondeur++;
+    $('dropVeil').hidden = false;
+  });
+  document.addEventListener('dragover', (e) => {
+    if (contientDesFichiers(e)) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+    }
+  });
+  document.addEventListener('dragleave', () => {
+    profondeur = Math.max(0, profondeur - 1);
+    if (!profondeur) $('dropVeil').hidden = true;
+  });
+  document.addEventListener('drop', (e) => {
+    if (!contientDesFichiers(e)) return;
+    e.preventDefault();
+    profondeur = 0;
+    $('dropVeil').hidden = true;
+    ajouterFichiers(e.dataTransfer.files);
+  });
+
+  /* ── bouton « aller à la ligne », séparé de l'envoi ── */
+  $('newlineBtn').addEventListener('click', () => {
+    const el = $('input');
+    const debut = el.selectionStart ?? el.value.length;
+    const fin = el.selectionEnd ?? debut;
+    el.value = `${el.value.slice(0, debut)}\n${el.value.slice(fin)}`;
+    el.selectionStart = el.selectionEnd = debut + 1;
+    el.focus();
+    autoGrow();
+  });
+
   $('suggestions').addEventListener('click', (e) => {
     const chip = e.target.closest('.chip');
     if (chip) sendMessage(chip.dataset.prompt);
@@ -1449,6 +1846,7 @@ function wire() {
       state.settings.model = p.model;
       $('baseUrl').value = p.baseUrl;
       $('model').value = p.model;
+      $('apiKey').placeholder = p.keyHint || 'Clé API (stockée uniquement sur cet appareil)';
     }
     saveSettings();
     refreshHealth();
@@ -1633,7 +2031,7 @@ async function init() {
   if (!currentThread()) state.currentId = state.threads[0]?.id || null;
   renderAll();
   await refreshHealth();
-  $('brandVersion').textContent = `v${state.health?.version || '2.0'}`;
+  $('brandVersion').textContent = `v${state.health?.version || '2.1'}`;
   $('input').focus();
 }
 

@@ -1,17 +1,21 @@
 # 🚀 Dossier `deploy/` — recettes d'hébergement
 
-Un fichier par plateforme. Toutes les recettes supposent que tu as lu
-**[docs/INSTALL-EN-LIGNE.md](../docs/INSTALL-EN-LIGNE.md)** et généré un mot de
-passe avec `./scripts/generate-password.sh`.
+Les fichiers de configuration vivent désormais **à la racine du projet**, là où
+les plateformes les cherchent. Il n'y a plus qu'une seule version de chacun :
+c'est ce qui évite de déployer une configuration périmée.
 
-| Fichier | Plateforme | Commande / geste |
+| Fichier (racine) | Plateforme | Geste |
 |---|---|---|
 | `render.yaml` | Render.com | Blueprint : Render lit le fichier tout seul |
 | `fly.toml` | Fly.io | `fly launch --copy-config` puis `fly secrets set` |
+| `Dockerfile` | VPS, Railway, Cloud Run | `docker build -t umbra-ia .` |
+| `docker-compose.yml` | VPS Docker | `docker compose up -d` |
+
+Marche à suivre détaillée pour une mise à jour du dépôt puis un déploiement
+Render : **[docs/DEPLOYER-RENDER.md](../docs/DEPLOYER-RENDER.md)**.
 
 Les autres options n'ont pas besoin de fichier :
 
-- **VPS Docker** → `docker-compose.yml` à la racine du projet
 - **Railway** → détecte le `Dockerfile` ; variables dans le tableau de bord
 - **Tunnel local** → `cloudflared tunnel --url http://localhost:4173`
 
@@ -19,23 +23,11 @@ Les autres options n'ont pas besoin de fichier :
 
 ## Rappel : les quatre variables qui comptent
 
-```env
-UMBRA_PASSWORD=sable-faucon-silex-brume-5809      # obligatoire
-UMBRA_SESSION_SECRET=<openssl rand -hex 32>
-UMBRA_PUBLIC_MODE=1
-UMBRA_TOOLS_DISABLE=run_python,browser_control,system_command
-```
+| Variable | Rôle |
+|---|---|
+| `UMBRA_PASSWORD` | la serrure. Sans elle, rien ne s'ouvre en public |
+| `UMBRA_SESSION_SECRET` | signe les sessions ; ne pas la changer sans raison |
+| `LLM_API_KEY` | le cerveau (Gemini). Sans elle : mode démo |
+| `LLM_FALLBACKS` | les secours, dans l'ordre. Un fournisseur sans clé est ignoré |
 
-Sans `UMBRA_PASSWORD`, le serveur **refuse de démarrer** : c'est une garde-fou,
-pas un oubli.
-
----
-
-## Vérification après déploiement
-
-```bash
-BASE=https://ton-adresse
-curl -s -o /dev/null -w "%{http_code}\n" $BASE/            # 302
-curl -s -o /dev/null -w "%{http_code}\n" $BASE/api/tools   # 401
-curl -s $BASE/api/health | head -c 120                      # ok:true
-```
+Les autres sont documentées dans `.env.deploy.example`.

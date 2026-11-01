@@ -114,10 +114,10 @@ git push -u origin main
 ### 3. Créer le service sur Render
 
 1. <https://dashboard.render.com> → **New** → **Blueprint**
-2. Choisis ton dépôt : Render lit `deploy/render.yaml` tout seul
+2. Choisis ton dépôt : Render lit `render.yaml` (à la racine) tout seul
 3. Il demande deux valeurs — c'est normal, elles ne sont pas dans le code :
    - `UMBRA_PASSWORD` → colle le mot de passe généré
-   - `LLM_API_KEY` → colle ta clé Gemini (`AQ.Ab8…`)
+   - `LLM_API_KEY` → colle ta clé Gemini (la clé commence par `AQ.`)
 4. **Apply**. Premier build : 3 à 5 minutes.
 5. Tu obtiens une adresse : `https://umbra-ia-xxxx.onrender.com`
 
@@ -197,8 +197,8 @@ jeton de session stocké ............ ✔
 erreurs JavaScript ................. 0
 ```
 
-Et côté serveur (`npm test`) : **29 tests, 0 échec**, dont 14 sur
-l'authentification (cookie, jeton Bearer, CORS, anti brute-force).
+Et côté serveur (`npm test`) : **93 tests, 0 échec** — authentification, bascule
+entre cerveaux, extraction des PDF/Word/Excel, pièces jointes, API.
 
 ---
 

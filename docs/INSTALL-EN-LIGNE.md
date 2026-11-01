@@ -71,7 +71,7 @@ Il y a quatre chemins. Du plus simple au plus « chez soi » :
    git push -u origin main
    ```
 2. Va sur <https://dashboard.render.com> → **New** → **Blueprint**.
-3. Choisis le dépôt. Render lit `deploy/render.yaml` tout seul.
+3. Choisis le dépôt. Render lit `render.yaml` (à la racine) tout seul.
 4. Il demande deux valeurs :
    - `UMBRA_PASSWORD` → colle ton mot de passe
    - `LLM_API_KEY` → ta clé Gemini (ou laisse vide = mode démo)
@@ -213,7 +213,7 @@ UMBRA_TOOLS_DISABLE=run_python,browser_control,system_command
 
 Umbra sait : chercher sur le web, lire une page, calculer, donner l'heure,
 prendre des notes, se souvenir. Elle ne touche **pas** au serveur.
-C'est ce que fait `docker-compose.yml` et `deploy/render.yaml` par défaut.
+C'est ce que font `docker-compose.yml` et `render.yaml` par défaut.
 
 ### 🟡 Public outillé (petit serveur perso, utilisateur unique)
 
@@ -262,7 +262,7 @@ de passe doit être refusé, et le bon doit ouvrir l'app.
 La suite automatisée couvre tout ça :
 
 ```bash
-npm test   # 26 tests, dont 11 sur l'authentification
+npm test   # 93 tests, dont ceux de l'authentification
 ```
 
 ---
@@ -306,44 +306,6 @@ Tu peux changer d'adresse plus tard : **⚙️ Réglages → Serveur Umbra**.
   change `UMBRA_SESSION_SECRET` et redéploie.
 - **Couper complètement** : supprime le service (Render) ou
   `docker compose down` (VPS).
-
----
-
-## 9. Sauvegarder ses notes quand le disque est éphémère
-
-Sur une offre gratuite (Render Free, Railway Trial), le disque n'est **pas**
-persistant : le carnet de notes est perdu à chaque réveil ou redéploiement.
-Les conversations et les souvenirs, eux, vivent dans le navigateur et ne
-bougent pas.
-
-La parade est intégrée à l'application :
-
-1. Ouvre **⚙️ Réglages** → **« Exporter mes données »**.
-   Le fichier `umbra-donnees-AAAA-MM-JJ.json` contient les conversations, les
-   souvenirs **et les notes du serveur**.
-2. Après un redéploiement, rouvre Réglages → **« Importer »** → choisis ce
-   fichier. Les notes sont réécrites dans le carnet.
-
-Détails techniques, si tu veux script l'opération :
-
-| Route | Méthode | Rôle |
-|---|---|---|
-| `/api/notes/export` | `GET` | renvoie `{ version, exportedAt, notes: [{ name, content }] }` |
-| `/api/notes/import` | `POST` | accepte `{ "notes": [{ "name", "content" }] }`, écrit dans `data/notes/` |
-
-```bash
-# Sauvegarde en ligne de commande (adapté au mot de passe si activé)
-curl -s https://TON-URL.onrender.com/api/notes/export > notes.json
-curl -s -X POST https://TON-URL.onrender.com/api/notes/import \
-     -H 'Content-Type: application/json' -d @notes.json
-```
-
-Les noms de notes sont systématiquement réduits à leur nom de fichier
-(`path.basename`) et nettoyés : une note nommée `../../etc/passwd` est
-enregistrée sous `passwd.md` à l'intérieur du carnet, jamais ailleurs.
-
-Pour ne plus y penser du tout : passe au plan Starter et active le disque
-`umbra-data` (voir `render.yaml`).
 
 ---
 

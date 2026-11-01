@@ -1,16 +1,16 @@
 # ─────────────────────────────────────────────────────────────
-#  Umbra IA — déploiement Render.com (offre gratuite possible)
+#  Umbra IA 2.1 — déploiement Render.com
 #
-#  1. Pousse ce dossier sur GitHub (dépôt privé de préférence).
-#  2. Sur https://dashboard.render.com → « New » → « Blueprint »
-#     → choisis ton dépôt. Render lit CE fichier (à la racine du dépôt).
-#  3. Il te demande UMBRA_PASSWORD et LLM_API_KEY : remplis-les.
-#  4. Umbra sera en ligne sur https://umbra-<quelquechose>.onrender.com
-#     (protégée par mot de passe).
+#  Ce fichier est lu automatiquement par Render (« Blueprint »).
+#  Il décrit tout : l'image, le port, la santé, les variables.
 #
-#  ⚠️ Sur l'offre gratuite, le disque n'est PAS persistant : notes et
-#  mémoire sont perdues à chaque redéploiement. Passe au plan Starter
-#  (7 $/mois) en ajoutant le bloc « disk » commenté plus bas.
+#  Marche à suivre complète : docs/DEPLOYER-RENDER.md
+#
+#  ⚠️ Sur l'offre gratuite, le disque n'est PAS persistant : les notes,
+#  les captures et les pièces jointes sont perdues à chaque redéploiement.
+#  Les conversations, elles, vivent dans le navigateur : rien ne se perd
+#  de ce côté. Pour garder les fichiers, passe au plan Starter et
+#  décommente le bloc « disk » à la fin.
 # ─────────────────────────────────────────────────────────────
 services:
   - type: web
@@ -20,25 +20,54 @@ services:
     plan: free
     region: frankfurt
     healthCheckPath: /api/health
-    autoDeploy: true
+    # Déploiement manuel : rien ne part tant que tu ne cliques pas sur
+    # « Manual Deploy ». Passe à true pour déployer à chaque git push.
+    autoDeploy: false
     envVars:
-      - key: UMBRA_PASSWORD # obligatoire : sinon Umbra refuse de démarrer
-        sync: false # Render te demandera la valeur
-      - key: UMBRA_SESSION_SECRET # généré automatiquement
-        generateValue: true
+      # ── obligatoire : sans ce mot de passe, l'instance est ouverte ──
+      - key: UMBRA_PASSWORD
+        sync: false # Render te demande la valeur au premier déploiement
+      - key: UMBRA_SESSION_SECRET
+        generateValue: true # généré une fois, conservé : les sessions survivent aux redéploiements
+
+      # ── sécurité : les outils dangereux restent éteints en ligne ──
       - key: UMBRA_PUBLIC_MODE
         value: "1"
       - key: UMBRA_TOOLS_DISABLE
         value: "run_python,browser_control,system_command"
+      - key: UMBRA_ALLOW_SHELL
+        value: "0"
+
+      # ── personnalisation ──
       - key: UMBRA_USER_NAME
         value: Monsieur
       - key: UMBRA_TIMEZONE
         value: Africa/Porto-Novo
-      - key: LLM_API_KEY # pour la vraie IA (facultatif : mode démo sinon)
+
+      # ── le cerveau principal (sans clé : mode démo, l'app reste utilisable) ──
+      - key: LLM_API_KEY
         sync: false
       - key: LLM_MODEL
         value: gemini-3.5-flash
-    # ── Persistance (plan payant uniquement) ──
+
+      # ── secours automatiques : un fournisseur sans clé est ignoré ──
+      - key: OLLAMA_ENABLED
+        value: "0" # aucun Ollama sur un serveur distant
+      - key: LLM_FALLBACKS
+        value: "groq,claude"
+      - key: GROQ_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+
+      # ── pièces jointes : l'APK n'est pas dans l'image ──
+      # Indique une adresse (release GitHub, Drive…) et /apk y redirigera
+      # le téléphone. Laisse vide pour un simple message d'explication.
+      - key: UMBRA_APK_URL
+        sync: false
+
+    # ── Persistance des fichiers (plan Starter, 7 $/mois) ──
+    # Décommente pour que notes, captures et pièces jointes survivent.
     # disk:
     #   name: umbra-data
     #   mountPath: /app/data

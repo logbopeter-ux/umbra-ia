@@ -77,7 +77,10 @@
           });
           const data = await res.json().catch(() => ({}));
           if (res.ok) {
-            window.location.replace('/');
+            // Revenir à la page demandée (ex. /apk pour télécharger l'APK),
+            // sinon à l'application.
+            const suite = new URLSearchParams(location.search).get('next');
+            window.location.replace(suite && suite.startsWith('/') ? suite : '/');
             return;
           }
           msg.textContent = data.error || 'Connexion impossible.';
