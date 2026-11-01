@@ -40,6 +40,68 @@ function loadEnv() {
 }
 loadEnv();
 
+/* La version vient de package.json : une seule source de vérité. Une version
+   recopiée à la main finit toujours par mentir. */
+const VERSION = (() => {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
+  } catch {
+    return '0.0.0';
+  }
+})();
+
+/* Où trouver l'APK quand il n'est pas sur le disque (cas de l'image Docker).
+
+   Avant, il fallait renseigner UMBRA_APK_URL à la main et la mettre à jour à
+   chaque version — oubli garanti. Désormais l'adresse se déduit de la version
+   en cours : la version publiée porte le tag v2.1.1 et le fichier s'appelle
+   Umbra-IA-2.1.1.apk. Si le fichier n'est pas là (publication en retard), on
+   retombe sur la dernière version publiée, puis sur l'API GitHub. */
+const DEPOT = process.env.UMBRA_GITHUB_REPO || 'logbopeter-ux/umbra-ia';
+const APK_VERSION = `Umbra-IA-${VERSION}.apk`;
+
+async function existe(url) {
+  try {
+    const r = await fetch(url, { method: 'HEAD', redirect: 'follow', signal: AbortSignal.timeout(4000) });
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function adresseApk() {
+  // 1. une adresse imposée à la main garde la priorité
+  if (process.env.UMBRA_APK_URL) return process.env.UMBRA_APK_URL;
+
+  if (!DEPOT) return null;
+
+  // 2. la version en cours d'exécution
+  const exacte = `https://github.com/${DEPOT}/releases/download/v${VERSION}/${APK_VERSION}`;
+  if (await existe(exacte)) return exacte;
+
+  // 3. la dernière version publiée, si elle porte le même nom de fichier
+  const derniere = `https://github.com/${DEPOT}/releases/latest/download/${APK_VERSION}`;
+  if (await existe(derniere)) return derniere;
+
+  // 4. on demande à GitHub le dernier APK publié, quel que soit son nom
+  try {
+    const entetes = { 'User-Agent': 'umbra-ia', Accept: 'application/vnd.github+json' };
+    if (process.env.GITHUB_TOKEN) entetes.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
+    const r = await fetch(`https://api.github.com/repos/${DEPOT}/releases/latest`, {
+      headers: entetes,
+      signal: AbortSignal.timeout(5000),
+    });
+    if (r.ok) {
+      const { assets = [] } = await r.json();
+      const apk = assets.find((a) => String(a.name).toLowerCase().endsWith('.apk'));
+      if (apk) return apk.browser_download_url;
+    }
+  } catch {
+    /* réseau absent : on laisse tomber proprement */
+  }
+  return null;
+}
+
 const PORT = Number(process.env.PORT || 4173);
 const HOST = process.env.HOST || '0.0.0.0';
 const USER = process.env.UMBRA_USER_NAME || 'Monsieur';
@@ -478,7 +540,7 @@ const server = http.createServer(async (req, res) => {
       });
       return sendJSON(res, 200, {
         ok: true,
-        version: '2.1.0',
+        version: VERSION,
         live: cfg.live,
         mode: cfg.live ? 'live' : 'demo',
         model: cfg.model,
@@ -702,13 +764,13 @@ const server = http.createServer(async (req, res) => {
           if (!dispo.length) {
             // Serveur en ligne : l'APK n'est pas dans l'image. On renvoie vers
             // l'adresse configurée (release GitHub, Drive, autre…).
-            const ailleurs = process.env.UMBRA_APK_URL;
+            const ailleurs = await adresseApk();
             if (ailleurs) {
               res.writeHead(302, { Location: ailleurs, ...cors(ORIGIN) });
               return res.end();
             }
             return sendJSON(res, 404, {
-              error: "Aucun APK sur ce serveur. Télécharge-le depuis ta machine, ou renseigne UMBRA_APK_URL pour pointer vers lui.",
+              error: "Aucune version de l'application Android n'est publiée pour le moment. Réessaie plus tard.",
             }, ORIGIN);
           }
           // le plus récent d'abord
@@ -784,7 +846,7 @@ server.listen(PORT, HOST, () => {
   const cfg = llmConfig();
   const url = `http://localhost:${PORT}`;
   console.log('\n  ╭─────────────────────────────────────────────╮');
-  console.log('  │  🌙  Umbra IA 2.1                            │');
+  console.log('  │  🌙  Umbra IA 2.1.1                            │');
   console.log('  ╰─────────────────────────────────────────────╯');
   console.log(`  Interface   ${url}`);
   const ip = adresseLocale();

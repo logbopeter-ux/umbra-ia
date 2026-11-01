@@ -1,6 +1,6 @@
 # 📲 Mettre à jour l'APK sur le téléphone
 
-La version **2.1.0** ajoute les pièces jointes (photos, PDF, Word, Excel…) et le
+La version **2.1.1** ajoute les pièces jointes (photos, PDF, Word, Excel…) et le
 bouton « aller à la ligne ». Voici comment la mettre sur le téléphone sans perdre
 vos conversations.
 
@@ -41,7 +41,7 @@ Vérification en une ligne :
 
 ```bash
 curl -s http://localhost:4173/api/health | grep -o '"version":"[^"]*"'
-# → "version":"2.1.0"
+# → "version":"2.1.1"
 ```
 
 ### Si Umbra est hébergée en ligne (Render, VPS…)
@@ -77,7 +77,7 @@ C'est le chemin le plus court : pas de câble, pas d'ordinateur à portée de ma
 ### La méthode sûre : par câble
 
 ```bash
-adb install -r apk/Umbra-IA-2.1.0.apk
+adb install -r apk/Umbra-IA-2.1.1.apk
 ```
 
 Le `-r` signifie « remplacer en gardant les données ». C'est l'équivalent de la
@@ -85,7 +85,7 @@ mise à jour depuis le téléphone.
 
 ### La méthode manuelle
 
-Copiez `apk/Umbra-IA-2.1.0.apk` sur le téléphone (câble USB, Google Drive,
+Copiez `apk/Umbra-IA-2.1.1.apk` sur le téléphone (câble USB, Google Drive,
 Telegram…), puis touchez le fichier dans le gestionnaire de fichiers.
 
 ---
@@ -117,13 +117,31 @@ Installer des applications inconnues**.
 
 ---
 
+## ⚠️ Si les boutons sont visibles mais ne font rien
+
+C'est le symptôme d'un **ancien fichier resté en cache** : le HTML est à jour,
+le JavaScript ne l'est pas. Depuis la 2.1.1, les fichiers de l'application sont
+chargés avec un numéro de version (`/app.js?v=2.1.1`) et le service worker les
+demande au réseau en priorité — le mélange ne peut plus se produire.
+
+Pour une installation antérieure, deux gestes suffisent :
+
+- **Dans le navigateur** : recharger en forçant (`Ctrl+Maj+R`, ou vider le cache
+  des sites dans les réglages).
+- **Dans l'APK** : installer la 2.1.1 par-dessus ; elle se débarrasse elle-même
+  de l'ancien service worker.
+
+Réglages → **Version** affiche désormais l'interface réellement en cours
+d'exécution. Si elle indique autre chose que la version du serveur, c'est un
+cache : rechargez.
+
 ## Étape 4 — Vérifier que la mise à jour a pris
 
 Dans l'application :
 
 1. **Réglages** en bas à gauche → l'adresse du serveur est-elle toujours la
    bonne ? (`http://192.168.1.42:4173` ou votre adresse en ligne)
-2. En haut à gauche, la petite mention doit indiquer **v2.1.0**.
+2. En haut à gauche, la petite mention doit indiquer **v2.1.1**.
 3. Sous le champ de saisie, un **trombone** à gauche et un **bouton ↵** à droite.
 4. Touchez le trombone : le sélecteur Android doit s'ouvrir avec « Photos »,
    « Fichiers » et « Appareil photo ».
@@ -189,11 +207,11 @@ JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 \
 ANDROID_HOME=/opt/android-sdk ANDROID_SDK_ROOT=/opt/android-sdk \
 GRADLE_USER_HOME=/opt/gradle-home \
 ./gradlew assembleRelease --no-daemon -x lintVitalAnalyzeRelease -x lintVitalRelease
-cp app/build/outputs/apk/release/app-release.apk ../apk/Umbra-IA-2.1.0.apk
+cp app/build/outputs/apk/release/app-release.apk ../apk/Umbra-IA-2.1.1.apk
 ```
 
 Puis vérifier la signature, sans quoi Android refusera la mise à jour :
 
 ```bash
-apksigner verify --print-certs apk/Umbra-IA-2.1.0.apk
+apksigner verify --print-certs apk/Umbra-IA-2.1.1.apk
 ```

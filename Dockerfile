@@ -8,7 +8,7 @@ FROM node:20-alpine
 
 LABEL org.opencontainers.image.title="Umbra IA" \
       org.opencontainers.image.description="Assistant personnel : chat, voix et actions réelles" \
-      org.opencontainers.image.version="2.1.0"
+      org.opencontainers.image.version="2.1.1"
 
 WORKDIR /app
 

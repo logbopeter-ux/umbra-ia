@@ -60,9 +60,10 @@ services:
       - key: ANTHROPIC_API_KEY
         sync: false
 
-      # ── pièces jointes : l'APK n'est pas dans l'image ──
-      # Indique une adresse (release GitHub, Drive…) et /apk y redirigera
-      # le téléphone. Laisse vide pour un simple message d'explication.
+      # ── l'APK n'est pas dans l'image (3,9 Mo inutiles sur un serveur) ──
+      # Inutile de renseigner quoi que ce soit : /apk déduit tout seul
+      # l'adresse de la version publiée sur GitHub (tag v<version>).
+      # Cette variable ne sert qu'à imposer une autre adresse (Drive…).
       - key: UMBRA_APK_URL
         sync: false
 

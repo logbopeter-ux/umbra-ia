@@ -73,6 +73,8 @@ const isNativeShell = () =>
   location.protocol === 'capacitor:' ||
   location.protocol === 'file:';
 
+const INTERFACE_VERSION = '2.1.1';
+
 const LS = {
   settings: 'umbra.v2.settings',
   threads: 'umbra.v2.threads',
@@ -1719,12 +1721,56 @@ function setupInstall() {
     );
   });
 
-  if ('serviceWorker' in navigator && !getServer() && location.protocol.startsWith('http')) {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  /* ── service worker ──
+     • Dans l'APK, les fichiers sont déjà embarqués : un service worker n'apporte
+       rien et peut servir une ancienne version (boutons inertes après mise à
+       jour). On le désinscrit et on vide son cache.
+     • Sur le web, on l'enregistre et on recharge une seule fois quand une
+       nouvelle version prend la main, pour ne jamais mélanger ancien HTML et
+       nouveau JavaScript. */
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    if (isNativeShell()) {
+      navigator.serviceWorker
+        .getRegistrations()
+        .then((rs) => Promise.all(rs.map((r) => r.unregister())))
+        .catch(() => {});
+      if (window.caches) {
+        caches
+          .keys()
+          .then((ks) => Promise.all(ks.map((k) => caches.delete(k))))
+          .catch(() => {});
+      }
+    } else if (!getServer()) {
+      navigator.serviceWorker
+        .register('/sw.js')
+        .then(() => {
+          let dejaRecharge = false;
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (dejaRecharge) return;
+            dejaRecharge = true;
+            try {
+              if (sessionStorage.getItem('umbra.recharge') === 'fait') return;
+              sessionStorage.setItem('umbra.recharge', 'fait');
+            } catch {
+              /* stockage indisponible : on recharge quand même, une seule fois */
+            }
+            location.reload();
+          });
+        })
+        .catch(() => {});
+    }
   }
 }
 
 /* ─────────────── Démarrage ─────────────── */
+
+/** Attache un écouteur si l'élément existe : un bouton manquant ne doit pas
+ *  empêcher les autres de fonctionner. */
+function sur(id, evenement, action) {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener(evenement, action);
+  return el;
+}
 
 function wire() {
   $('newChat').addEventListener('click', newThread);
@@ -1748,8 +1794,8 @@ function wire() {
   $('stopBtn').addEventListener('click', stopStreaming);
 
   /* ── pièces jointes ── */
-  $('clipBtn').addEventListener('click', () => $('fileInput').click());
-  $('fileInput').addEventListener('change', (e) => {
+  sur('clipBtn', 'click', () => $('fileInput')?.click());
+  sur('fileInput', 'change', (e) => {
     ajouterFichiers(e.target.files);
     e.target.value = ''; // permet de renvoyer deux fois le même fichier
   });
@@ -1789,8 +1835,9 @@ function wire() {
   });
 
   /* ── bouton « aller à la ligne », séparé de l'envoi ── */
-  $('newlineBtn').addEventListener('click', () => {
+  sur('newlineBtn', 'click', () => {
     const el = $('input');
+    if (!el) return;
     const debut = el.selectionStart ?? el.value.length;
     const fin = el.selectionEnd ?? debut;
     el.value = `${el.value.slice(0, debut)}\n${el.value.slice(fin)}`;
@@ -2031,7 +2078,13 @@ async function init() {
   if (!currentThread()) state.currentId = state.threads[0]?.id || null;
   renderAll();
   await refreshHealth();
-  $('brandVersion').textContent = `v${state.health?.version || '2.1'}`;
+  $('brandVersion').textContent = `v${state.health?.version || '2.1.1'}`;
+  const info = $('versionInfo');
+  if (info) {
+    const natif = isNativeShell() ? 'application Android' : 'navigateur';
+    const cache = 'serviceWorker' in navigator && navigator.serviceWorker.controller ? ' · cache actif' : '';
+    info.textContent = `Interface ${INTERFACE_VERSION} (${natif})${cache} — serveur ${state.health?.version || 'hors ligne'}`;
+  }
   $('input').focus();
 }
 

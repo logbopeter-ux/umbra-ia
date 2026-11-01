@@ -15,7 +15,7 @@
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <link rel="preload" as="font" type="font/woff2" href="/fonts/xn7gYHE41ni1AdIRggmxSuXd.woff2" crossorigin />
     <link rel="preload" as="font" type="font/woff2" href="/fonts/jizBRFtNs2ka5fXjeivQ4LroWlx-6zsTjmbI.woff2" crossorigin />
-    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/styles.css?v=2.1.1" />
   </head>
   <body>
     <div class="app" id="app">
@@ -25,7 +25,7 @@
           <img src="/icons/icon.svg" alt="" class="brand-logo" width="40" height="40" />
           <div class="brand-text">
             <span class="brand-name">Umbra IA</span>
-            <span class="brand-version" id="brandVersion">v2.1</span>
+            <span class="brand-version" id="brandVersion">v2.1.1</span>
           </div>
           <button class="icon-btn sidebar-close" id="sidebarClose" aria-label="Fermer le menu">✕</button>
         </div>
@@ -223,6 +223,12 @@
             </div>
             <input type="file" id="importFile" accept="application/json" hidden />
           </section>
+
+          <section class="field-group">
+            <h3>Version</h3>
+            <p class="help" id="versionInfo">Interface : …</p>
+            <p class="help">Si un bouton semble inerte après une mise à jour, c'est un ancien fichier resté en cache : recharge la page, ou réinstalle l'APK.</p>
+          </section>
         </div>
       </div>
     </dialog>
@@ -299,6 +305,6 @@
 
     <div class="toasts" id="toasts" aria-live="polite"></div>
 
-    <script src="/app.js" type="module"></script>
+    <script src="/app.js?v=2.1.1" type="module"></script>
   </body>
 </html>

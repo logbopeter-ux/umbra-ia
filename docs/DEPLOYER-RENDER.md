@@ -1,6 +1,6 @@
 # 🚀 Mettre à jour GitHub puis déployer sur Render
 
-Ce guide fait passer votre dépôt de la version précédente à **Umbra IA 2.1.0**, puis
+Ce guide fait passer votre dépôt de la version précédente à **Umbra IA 2.1.1**, puis
 la met en ligne sur Render en déploiement manuel. Comptez **dix minutes**, dont
 trois d'attente pendant la construction.
 
@@ -58,7 +58,7 @@ awk '/^-----BEGIN UMBRA ARCHIVE-----$/{f=1;next} /^-----END UMBRA ARCHIVE-----$/
 
 # 2. vérifier que c'est bien la 2.1
 grep '"version"' umbra-ia-nouveau/package.json
-# → "version": "2.1.0"
+# → "version": "2.1.1"
 ls umbra-ia-nouveau/server/fichiers.js
 ```
 
@@ -97,7 +97,7 @@ Si les tests passent chez vous, ils passeront sur Render.
 
 ```bash
 git add -A
-git commit -m "Umbra IA 2.1.0 — pièces jointes, vision, bouton retour à la ligne"
+git commit -m "Umbra IA 2.1.1 — correctif du cache, vision, bouton retour à la ligne"
 git push origin main
 ```
 
@@ -140,7 +140,7 @@ cache.
    - **`UMBRA_PASSWORD`** — obligatoire, c'est la serrure de votre Umbra
    - **`LLM_API_KEY`** — votre clé Gemini (facultative : sans elle, mode démo)
    - `GROQ_API_KEY`, `ANTHROPIC_API_KEY` — facultatives, pour les secours
-   - `UMBRA_APK_URL` — facultative, voir plus bas
+   - `UMBRA_APK_URL` — inutile en temps normal, voir plus bas
 5. **Apply**. Le déploiement démarre.
 
 ### Ce que Render vous donne
@@ -194,22 +194,27 @@ Puis le test qui compte : joignez un PDF, écrivez « résume ce document », en
 
 ### L'APK depuis Render
 
-L'APK n'est **pas** embarqué dans l'image Docker (3,9 Mo inutiles sur un serveur).
-Deux façons de le distribuer :
+L'APK n'est **pas** embarqué dans l'image Docker : 3,9 Mo inutiles sur un serveur.
 
-**La simple** — hébergez-le où vous voulez (release GitHub, Drive, Dropbox) et
-renseignez `UMBRA_APK_URL` dans les variables Render. L'adresse `/apk` de votre
-serveur redirigera le téléphone vers ce fichier, après le mot de passe.
+**Vous n'avez rien à configurer.** L'adresse `/apk` de votre serveur redirige le
+téléphone vers la bonne version, après le mot de passe. Umbra déduit l'adresse
+de sa propre version : la version 2.1.1 cherche le tag `v2.1.1` et le fichier
+`Umbra-IA-2.1.1.apk`. À la version suivante, l'adresse change toute seule.
 
-**L'alternative** — envoyez `apk/Umbra-IA-2.1.0.apk` dans une *release* GitHub,
-puis mettez son adresse dans `UMBRA_APK_URL` :
+Il suffit donc que chaque mise à jour soit publiée sur GitHub avec :
 
 ```
-https://github.com/<compte>/<depot>/releases/latest/download/Umbra-IA-2.1.0.apk
+tag    : v2.1.1
+fichier: Umbra-IA-2.1.1.apk
 ```
 
-Sans `UMBRA_APK_URL`, `/apk` répond par un message clair au lieu d'une erreur
-serveur — rien ne casse.
+Si le fichier d'une version n'est pas encore publié, Umbra essaie la dernière
+version disponible, puis demande à GitHub la liste des fichiers joints. En
+dernier recours seulement, `/apk` explique que rien n'est publié — jamais une
+erreur serveur.
+
+Pour imposer une autre adresse (Drive, Dropbox, hébergeur maison), renseignez
+`UMBRA_APK_URL` : elle a toujours la priorité.
 
 ### Garder les fichiers (7 $/mois)
 
