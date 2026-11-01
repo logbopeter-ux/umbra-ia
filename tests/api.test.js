@@ -191,8 +191,22 @@ test('/api/chat accepte un message avec pièce jointe sans planter', async () =>
 /* ─────────────── Mise à jour de l'APK depuis le téléphone ─────────────── */
 
 test('GET /apk sert le dernier APK disponible', async () => {
-  const res = await fetch(`${BASE}/apk`);
-  if (res.status === 404) return; // aucun APK dans cette copie du dépôt : acceptable
+  // redirect:'manual' est essentiel : sans ça, fetch suit la redirection vers
+  // GitHub et le test vérifierait les en-têtes de GitHub, pas les nôtres.
+  const res = await fetch(`${BASE}/apk`, { redirect: 'manual' });
+
+  // Cas 1 : pas d'APK sur le disque ni publié (machine hors ligne) — acceptable.
+  if (res.status === 404) return;
+
+  // Cas 2 : l'APK vit sur GitHub, /apk redirige vers lui.
+  if (res.status >= 300 && res.status < 400) {
+    const cible = res.headers.get('location') || '';
+    assert.match(cible, /\.apk$/, 'la redirection doit viser un fichier .apk');
+    assert.match(cible, /Umbra-IA-/, 'le fichier doit être nommé Umbra-IA-<version>.apk');
+    return;
+  }
+
+  // Cas 3 : l'APK est sur le disque, il est servi directement.
   assert.equal(res.status, 200);
   assert.equal(res.headers.get('content-type'), 'application/vnd.android.package-archive');
   assert.match(res.headers.get('content-disposition'), /\.apk"/);
