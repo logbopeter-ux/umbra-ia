@@ -68,6 +68,8 @@ services:
 
     # ── Persistance des fichiers (plan Starter, 7 $/mois) ──
     # Décommente pour que notes, captures et pièces jointes survivent.
+    # Rien d'autre à faire : docker-entrypoint.sh redonne /app/data à
+    # l'utilisateur « node » au démarrage (un disque Render appartient à root).
     # disk:
     #   name: umbra-data
     #   mountPath: /app/data

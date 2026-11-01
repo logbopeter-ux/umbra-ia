@@ -19,3 +19,4 @@ apk
 *.zip
 UMBRA-*
 *.base64
+!docker-entrypoint.sh

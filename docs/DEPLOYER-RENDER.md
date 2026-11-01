@@ -226,6 +226,11 @@ navigateur). Pour les garder, dans `render.yaml` :
 
 Passez alors le plan à `starter`, commitez, redéployez.
 
+Aucune autre manipulation : au démarrage, `docker-entrypoint.sh` s'exécute en
+root quelques instants pour redonner `/app/data` à l'utilisateur applicatif
+(un disque Render appartient à root), puis abandonne immédiatement ses
+privilèges avec `su-exec`. Sans disque monté, ce script ne change rien.
+
 ---
 
 ## En cas d'échec du déploiement
